@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+@theme {
+  /* Paleta — Arrecife (tomada de la carta real) */
+  --color-crema: #f4ecdb;
+  --color-crema-soft: #efe4cd;
+  --color-tinta: #2a2119;
+  --color-tinta-dim: #6b6155;
+  --color-title: #a63a2c;
+  --color-title-soft: #c17055;
+  --color-salvia: #93a48f;
+  --color-arcilla: #c98c74;
+  --color-teal: #1c8b7f;
+  --color-linea: #d8c7ac;
+
+  /* Tipografia */
+  --font-display: "Playfair Display", Georgia, serif;
+  --font-body: "Inter", system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-crema);
+    color: var(--color-tinta);
+    font-family: var(--font-body);
+  }
+}
+
+/* Punto que acompaña la categoria activa */
+@keyframes glow-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.title-dot {
+  animation: glow-soft 2.2s ease-in-out infinite;
+}
