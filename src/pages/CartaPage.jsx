@@ -1,9 +1,12 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { useMenu } from '../hooks/useMenu'
+import { useCartStore } from '../store/cartStore'
 import CategoryTabs from '../components/menu/CategoryTabs'
 import MenuList from '../components/menu/MenuList'
 import SectionHeading from '../components/menu/SectionHeading'
+import GuarnicionPicker from '../components/menu/GuarnicionPicker'
 
 export default function CartaPage() {
   const {
@@ -16,9 +19,20 @@ export default function CartaPage() {
     isLoading,
   } = useMenu()
 
+  const addItem = useCartStore((state) => state.addItem)
+  const [pickerItem, setPickerItem] = useState(null)
+
   function handleAdd(item) {
-    // Fase siguiente: esto va a despachar al store del carrito (Zustand).
-    console.log('Agregar al pedido:', item.name)
+    if (item.requiresGuarnicion) {
+      setPickerItem(item)
+    } else {
+      addItem(item)
+    }
+  }
+
+  function handleConfirmGuarnicion(guarnicion) {
+    addItem(pickerItem, { guarnicion })
+    setPickerItem(null)
   }
 
   const activeLabel =
@@ -73,6 +87,14 @@ export default function CartaPage() {
           )}
           <MenuList items={items} isLoading={isLoading} onAdd={handleAdd} />
         </>
+      )}
+
+      {pickerItem && (
+        <GuarnicionPicker
+          item={pickerItem}
+          onConfirm={handleConfirmGuarnicion}
+          onCancel={() => setPickerItem(null)}
+        />
       )}
     </div>
   )

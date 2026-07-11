@@ -3,6 +3,8 @@ import Header from './components/layout/Header'
 import HomePage from './pages/HomePage'
 import CartaPage from './pages/CartaPage'
 import DeliveryPage from './pages/DeliveryPage'
+import CheckoutPage from './pages/CheckoutPage'
+import OrderConfirmedPage from './pages/OrderConfirmedPage'
 import ReservasPage from './pages/ReservasPage'
 
 export default function App() {
@@ -13,6 +15,8 @@ export default function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/carta" element={<CartaPage />} />
         <Route path="/delivery" element={<DeliveryPage />} />
+        <Route path="/delivery/checkout" element={<CheckoutPage />} />
+        <Route path="/delivery/confirmacion" element={<OrderConfirmedPage />} />
         <Route path="/reservas" element={<ReservasPage />} />
       </Routes>
     </div>

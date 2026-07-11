@@ -1,8 +1,5 @@
 import { Leaf, Plus } from 'lucide-react'
-
-function formatPrice(price) {
-  return `$${price.toLocaleString('es-UY')}`
-}
+import { formatPrice } from '../../utils/format'
 
 export default function MenuItemRow({ item, onAdd }) {
   const isVeg = item.tags.includes('vegetariano') || item.tags.includes('vegano')
@@ -21,11 +18,14 @@ export default function MenuItemRow({ item, onAdd }) {
       </div>
 
       <div className="flex items-end justify-between gap-3 mt-0.5">
-        {item.description ? (
-          <p className="text-sm text-tinta-dim leading-snug pr-4">{item.description}</p>
-        ) : (
-          <span />
-        )}
+        <div className="pr-4">
+          {item.description && (
+            <p className="text-sm text-tinta-dim leading-snug">{item.description}</p>
+          )}
+          {item.requiresGuarnicion && (
+            <p className="text-xs text-salvia italic">Guarnición a elección incluida.</p>
+          )}
+        </div>
         <button
           onClick={() => onAdd?.(item)}
           className="opacity-0 group-hover:opacity-100 focus:opacity-100 sm:opacity-60 flex items-center gap-1 text-[11px] uppercase tracking-wide text-tinta-dim hover:text-title border border-linea hover:border-title rounded-full px-2.5 py-1 shrink-0 transition"
