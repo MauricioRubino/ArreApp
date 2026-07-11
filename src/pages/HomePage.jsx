@@ -31,9 +31,7 @@ export default function HomePage() {
         className="w-full max-w-md h-auto mb-6"
       />
 
-      <p className="text-tinta-dim max-w-md mb-14">
-        Cocina de brasas y de mar, frente al puerto. Desde 1986.
-      </p>
+      <p className="text-tinta-dim max-w-md mb-14">Desde 1986.</p>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
         {OPTIONS.map(({ to, icon: Icon, title, description }) => (
