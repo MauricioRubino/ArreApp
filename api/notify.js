@@ -1,5 +1,7 @@
 // Función serverless (Vercel) que arma el mensaje de WhatsApp para el
-// dueño a partir de un pedido o una reserva.
+// dueño a partir de un pedido o una reserva, le asigna un número (para
+// poder referenciarlo después, ej. "ok #3") y lo guarda para poder
+// correlacionar la respuesta del dueño más adelante (ver webhook.js).
 //
 // Mientras no exista una cuenta de WhatsApp Business Platform conectada
 // (faltan las variables de entorno de abajo), el mensaje sólo se deja
@@ -8,12 +10,11 @@
 //
 // Variables de entorno necesarias para el envío real (ver .env.example):
 //   WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID, OWNER_WHATSAPP_NUMBER,
-//   WHATSAPP_TEMPLATE_NAME (opcional)
-//
-// Supuesto sobre la plantilla: se espera una plantilla aprobada en Meta
-// con un solo parámetro de cuerpo ({{1}}) que recibe todo el texto ya
-// armado. Si la plantilla que aprueben tiene otra estructura, ajustar
-// el array "components" de más abajo.
+//   WHATSAPP_TEMPLATE_NAME (opcional), UPSTASH_REDIS_REST_URL,
+//   UPSTASH_REDIS_REST_TOKEN
+
+import { sendWhatsAppMessage } from './_lib/whatsapp.js'
+import { getNextNumber, saveRecord } from './_lib/store.js'
 
 const METODOS_PAGO_LABELS = {
   efectivo: 'Efectivo',
@@ -39,7 +40,7 @@ function formatFecha(iso) {
   return text.charAt(0).toUpperCase() + text.slice(1)
 }
 
-function buildOrderMessage(order) {
+function buildOrderMessage(numero, order) {
   const itemLines = (order.items || [])
     .map((item) => {
       const guarnicion = item.guarnicion ? ` (${item.guarnicion})` : ''
@@ -54,7 +55,7 @@ function buildOrderMessage(order) {
     : ''
 
   return [
-    '🍽️ *Nuevo pedido - Arrecife*',
+    `🍽️ *Pedido #${numero} - Arrecife*`,
     '',
     `*Cliente:* ${order.nombre}`,
     `*Teléfono:* ${order.telefono}`,
@@ -66,16 +67,18 @@ function buildOrderMessage(order) {
     '',
     `*Total:* ${formatPrice(order.total)}`,
     `*Pago:* ${metodoPago}`,
+    '',
+    `Respondé "ok #${numero}", "listo #${numero}" o "en camino #${numero}" para avisarle al cliente.`,
   ]
     .filter((line) => line !== null)
     .join('\n')
 }
 
-function buildReservationMessage(reservation) {
+function buildReservationMessage(numero, reservation) {
   const zona = ZONA_LABELS[reservation.zona] || reservation.zona
 
   return [
-    '📅 *Nueva reserva - Arrecife*',
+    `📅 *Reserva #${numero} - Arrecife*`,
     '',
     `*Nombre:* ${reservation.nombre}`,
     `*Teléfono:* ${reservation.telefono}`,
@@ -84,6 +87,8 @@ function buildReservationMessage(reservation) {
     `*Personas:* ${reservation.personas}`,
     `*Zona:* ${zona}`,
     reservation.comentario ? `*Comentarios:* ${reservation.comentario}` : null,
+    '',
+    `Respondé "confirmada #${numero}" o "cancelada #${numero}" para avisarle al cliente.`,
   ]
     .filter((line) => line !== null)
     .join('\n')
@@ -101,48 +106,26 @@ export default async function handler(req, res) {
     return
   }
 
-  const message = type === 'order' ? buildOrderMessage(payload) : buildReservationMessage(payload)
+  const numero = await getNextNumber()
 
-  const { WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_TEMPLATE_NAME, OWNER_WHATSAPP_NUMBER } =
-    process.env
+  await saveRecord(numero, {
+    tipo: type,
+    nombre: payload.nombre,
+    telefono: payload.telefono,
+    estado: 'nuevo',
+    createdAt: Date.now(),
+  })
 
-  const isConfigured = WHATSAPP_ACCESS_TOKEN && WHATSAPP_PHONE_NUMBER_ID && OWNER_WHATSAPP_NUMBER
+  const message =
+    type === 'order' ? buildOrderMessage(numero, payload) : buildReservationMessage(numero, payload)
 
-  if (!isConfigured) {
-    console.log('[notify] WhatsApp Business todavía no está configurado. Mensaje simulado:\n' + message)
-    res.status(200).json({ ok: true, simulated: true })
+  const ownerNumber = process.env.OWNER_WHATSAPP_NUMBER
+  if (!ownerNumber) {
+    console.log('[notify] OWNER_WHATSAPP_NUMBER no configurado. Mensaje simulado:\n' + message)
+    res.status(200).json({ ok: true, simulated: true, numero })
     return
   }
 
-  try {
-    const response = await fetch(`https://graph.facebook.com/v21.0/${WHATSAPP_PHONE_NUMBER_ID}/messages`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${WHATSAPP_ACCESS_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        to: OWNER_WHATSAPP_NUMBER,
-        type: 'template',
-        template: {
-          name: WHATSAPP_TEMPLATE_NAME || 'notificacion_arrecife',
-          language: { code: 'es_UY' },
-          components: [{ type: 'body', parameters: [{ type: 'text', text: message }] }],
-        },
-      }),
-    })
-
-    const data = await response.json()
-    if (!response.ok) {
-      console.error('[notify] Error de la API de WhatsApp:', data)
-      res.status(502).json({ ok: false, error: data })
-      return
-    }
-
-    res.status(200).json({ ok: true, simulated: false, data })
-  } catch (error) {
-    console.error('[notify] Error enviando WhatsApp:', error)
-    res.status(500).json({ ok: false, error: String(error) })
-  }
+  const result = await sendWhatsAppMessage(ownerNumber, message)
+  res.status(result.ok ? 200 : 502).json({ ...result, numero })
 }

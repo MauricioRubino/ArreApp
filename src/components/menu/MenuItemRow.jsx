@@ -3,9 +3,10 @@ import { formatPrice } from '../../utils/format'
 
 export default function MenuItemRow({ item, onAdd }) {
   const isVeg = item.tags.includes('vegetariano') || item.tags.includes('vegano')
+  const sinStock = Boolean(item.sinStock)
 
   return (
-    <div className="py-3 border-b border-linea/60 last:border-b-0 group">
+    <div className={`py-3 border-b border-linea/60 last:border-b-0 group ${sinStock ? 'opacity-50' : ''}`}>
       <div className="flex items-baseline gap-2">
         <h4 className="font-display text-tinta text-base sm:text-lg tracking-wide shrink-0">
           {item.name}
@@ -22,17 +23,20 @@ export default function MenuItemRow({ item, onAdd }) {
           {item.description && (
             <p className="text-sm text-tinta-dim leading-snug">{item.description}</p>
           )}
-          {item.requiresGuarnicion && (
+          {item.requiresGuarnicion && !sinStock && (
             <p className="text-xs text-salvia italic">Guarnición a elección incluida.</p>
           )}
+          {sinStock && <p className="text-xs text-title uppercase tracking-wide font-medium">Sin stock</p>}
         </div>
-        <button
-          onClick={() => onAdd?.(item)}
-          className="opacity-0 group-hover:opacity-100 focus:opacity-100 sm:opacity-60 flex items-center gap-1 text-[11px] uppercase tracking-wide text-tinta-dim hover:text-title border border-linea hover:border-title rounded-full px-2.5 py-1 shrink-0 transition"
-        >
-          <Plus className="w-3 h-3" strokeWidth={2.5} />
-          Agregar
-        </button>
+        {!sinStock && (
+          <button
+            onClick={() => onAdd?.(item)}
+            className="opacity-0 group-hover:opacity-100 focus:opacity-100 sm:opacity-60 flex items-center gap-1 text-[11px] uppercase tracking-wide text-tinta-dim hover:text-title border border-linea hover:border-title rounded-full px-2.5 py-1 shrink-0 transition"
+          >
+            <Plus className="w-3 h-3" strokeWidth={2.5} />
+            Agregar
+          </button>
+        )}
       </div>
     </div>
   )

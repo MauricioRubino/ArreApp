@@ -11,6 +11,11 @@ export default function OrderConfirmation({ order }) {
         <CheckCircle2 className="w-6 h-6 text-teal" strokeWidth={1.75} />
       </span>
 
+      {order.numero && (
+        <p className="text-xs uppercase tracking-[0.2em] text-teal font-semibold mb-2">
+          Pedido #{order.numero}
+        </p>
+      )}
       <h2 className="font-display text-2xl text-tinta tracking-wide mb-2">¡Tu pedido está listo!</h2>
       <p className="text-sm text-tinta-dim mb-8">Ya lo recibimos y lo estamos preparando.</p>
 

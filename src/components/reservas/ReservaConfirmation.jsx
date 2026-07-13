@@ -16,6 +16,11 @@ export default function ReservaConfirmation({ reservation, onReset }) {
         <CheckCircle2 className="w-6 h-6 text-teal" strokeWidth={1.75} />
       </span>
 
+      {reservation.numero && (
+        <p className="text-xs uppercase tracking-[0.2em] text-teal font-semibold mb-2">
+          Reserva #{reservation.numero}
+        </p>
+      )}
       <h2 className="font-display text-2xl text-tinta tracking-wide mb-2">¡Reserva enviada!</h2>
       <p className="text-sm text-tinta-dim mb-8">
         Hola {reservation.nombre}, anotamos tu solicitud. Te confirmamos la mesa por WhatsApp al{' '}

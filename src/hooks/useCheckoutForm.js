@@ -58,10 +58,10 @@ export function useCheckoutForm() {
         items,
         total: totalPrice,
       })
+      const numero = await notifyOwnerOfOrder(result)
       hasSubmittedRef.current = true
-      navigate('/delivery/confirmacion', { state: { order: result } })
+      navigate('/delivery/confirmacion', { state: { order: { ...result, numero } } })
       clearCart()
-      notifyOwnerOfOrder(result)
     } catch {
       setStatus('error')
     }

@@ -55,9 +55,9 @@ export function useReservaForm() {
         ...fields,
         personas: Number(fields.personas),
       })
-      setReservation(result)
+      const numero = await notifyOwnerOfReservation(result)
+      setReservation({ ...result, numero })
       setStatus('success')
-      notifyOwnerOfReservation(result)
     } catch {
       setStatus('error')
     }
