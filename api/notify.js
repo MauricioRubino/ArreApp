@@ -59,7 +59,7 @@ function buildOrderMessage(order) {
     `*Cliente:* ${order.nombre}`,
     `*Teléfono:* ${order.telefono}`,
     `*Dirección:* ${direccion}`,
-    ubicacion && `*Ubicación:* ${ubicacion}`,
+    ubicacion ? `*Ubicación:* ${ubicacion}` : null,
     '',
     '*Pedido:*',
     itemLines,
@@ -67,7 +67,7 @@ function buildOrderMessage(order) {
     `*Total:* ${formatPrice(order.total)}`,
     `*Pago:* ${metodoPago}`,
   ]
-    .filter(Boolean)
+    .filter((line) => line !== null)
     .join('\n')
 }
 
@@ -83,9 +83,9 @@ function buildReservationMessage(reservation) {
     `*Horario:* ${reservation.hora}`,
     `*Personas:* ${reservation.personas}`,
     `*Zona:* ${zona}`,
-    reservation.comentario && `*Comentarios:* ${reservation.comentario}`,
+    reservation.comentario ? `*Comentarios:* ${reservation.comentario}` : null,
   ]
-    .filter(Boolean)
+    .filter((line) => line !== null)
     .join('\n')
 }
 
