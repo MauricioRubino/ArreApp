@@ -102,7 +102,7 @@ export default function CartaPage() {
       {hasCartItems ? (
         <Link
           to="/delivery"
-          className="fixed bottom-5 right-5 sm:bottom-8 sm:right-8 z-30 inline-flex items-center gap-2 px-5 py-3 rounded-full font-medium tracking-wide shadow-lg bg-teal text-crema hover:bg-teal/90 transition-colors"
+          className="fixed bottom-5 left-1/2 -translate-x-1/2 z-30 w-[calc(100%-2.5rem)] max-w-sm inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-lg font-medium tracking-wide shadow-lg bg-teal text-crema hover:bg-teal/90 transition-colors"
         >
           <ShoppingBag className="w-4 h-4" strokeWidth={2} />
           Realizar pedido
@@ -110,7 +110,7 @@ export default function CartaPage() {
       ) : (
         <span
           aria-disabled="true"
-          className="fixed bottom-5 right-5 sm:bottom-8 sm:right-8 z-30 inline-flex items-center gap-2 px-5 py-3 rounded-full font-medium tracking-wide shadow-lg bg-linea text-tinta-dim cursor-not-allowed select-none"
+          className="fixed bottom-5 left-1/2 -translate-x-1/2 z-30 w-[calc(100%-2.5rem)] max-w-sm inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-lg font-medium tracking-wide shadow-lg bg-linea text-tinta-dim cursor-not-allowed select-none"
         >
           <ShoppingBag className="w-4 h-4" strokeWidth={2} />
           Realizar pedido
