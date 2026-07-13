@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { createReservation } from '../services/reservasService'
+import { notifyOwnerOfReservation } from '../services/notificationService'
 import { PERSONAS_MAX_ONLINE } from '../data/reservasData'
 
 const INITIAL_FIELDS = {
@@ -56,6 +57,7 @@ export function useReservaForm() {
       })
       setReservation(result)
       setStatus('success')
+      notifyOwnerOfReservation(result)
     } catch {
       setStatus('error')
     }

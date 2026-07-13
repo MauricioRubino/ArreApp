@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createOrder } from '../services/checkoutService'
+import { notifyOwnerOfOrder } from '../services/notificationService'
 import { useCartStore, selectTotalPrice } from '../store/cartStore'
 import { DEFAULT_LOCATION } from '../data/locationData'
 
@@ -60,6 +61,7 @@ export function useCheckoutForm() {
       hasSubmittedRef.current = true
       navigate('/delivery/confirmacion', { state: { order: result } })
       clearCart()
+      notifyOwnerOfOrder(result)
     } catch {
       setStatus('error')
     }
