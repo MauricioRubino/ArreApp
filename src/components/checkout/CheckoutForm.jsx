@@ -25,6 +25,7 @@ export default function CheckoutForm({
   location,
   setLocation,
   status,
+  errorMessage,
   items,
   totalPrice,
   onSubmit,
@@ -125,7 +126,7 @@ export default function CheckoutForm({
 
       {status === 'error' && (
         <p className="text-xs text-title bg-title/5 border border-title/20 rounded-lg px-3.5 py-2.5">
-          Hubo un problema al enviar tu pedido. Probá de nuevo.
+          {errorMessage || 'Hubo un problema al enviar tu pedido. Probá de nuevo.'}
         </p>
       )}
 

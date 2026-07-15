@@ -1,58 +1,66 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 
 function makeCartItemId(menuItemId, guarnicion) {
   return guarnicion ? `${menuItemId}::${guarnicion}` : menuItemId
 }
 
-export const useCartStore = create((set) => ({
-  items: [],
+// persist: el carrito sobrevive recargas y pestañas descartadas por el
+// navegador (frecuente en celular), guardándose en localStorage.
+export const useCartStore = create(
+  persist(
+    (set) => ({
+      items: [],
 
-  addItem: (menuItem, { guarnicion } = {}) => {
-    const cartItemId = makeCartItemId(menuItem.id, guarnicion)
-    set((state) => {
-      const existing = state.items.find((line) => line.cartItemId === cartItemId)
-      if (existing) {
-        return {
-          items: state.items.map((line) =>
-            line.cartItemId === cartItemId ? { ...line, quantity: line.quantity + 1 } : line
-          ),
-        }
-      }
-      return {
-        items: [
-          ...state.items,
-          {
-            cartItemId,
-            menuItemId: menuItem.id,
-            name: menuItem.name,
-            price: menuItem.price,
-            quantity: 1,
-            guarnicion: guarnicion ?? null,
-          },
-        ],
-      }
-    })
-  },
+      addItem: (menuItem, { guarnicion } = {}) => {
+        const cartItemId = makeCartItemId(menuItem.id, guarnicion)
+        set((state) => {
+          const existing = state.items.find((line) => line.cartItemId === cartItemId)
+          if (existing) {
+            return {
+              items: state.items.map((line) =>
+                line.cartItemId === cartItemId ? { ...line, quantity: line.quantity + 1 } : line
+              ),
+            }
+          }
+          return {
+            items: [
+              ...state.items,
+              {
+                cartItemId,
+                menuItemId: menuItem.id,
+                name: menuItem.name,
+                price: menuItem.price,
+                quantity: 1,
+                guarnicion: guarnicion ?? null,
+              },
+            ],
+          }
+        })
+      },
 
-  setQuantity: (cartItemId, quantity) => {
-    set((state) => {
-      if (quantity <= 0) {
-        return { items: state.items.filter((line) => line.cartItemId !== cartItemId) }
-      }
-      return {
-        items: state.items.map((line) =>
-          line.cartItemId === cartItemId ? { ...line, quantity } : line
-        ),
-      }
-    })
-  },
+      setQuantity: (cartItemId, quantity) => {
+        set((state) => {
+          if (quantity <= 0) {
+            return { items: state.items.filter((line) => line.cartItemId !== cartItemId) }
+          }
+          return {
+            items: state.items.map((line) =>
+              line.cartItemId === cartItemId ? { ...line, quantity } : line
+            ),
+          }
+        })
+      },
 
-  removeItem: (cartItemId) => {
-    set((state) => ({ items: state.items.filter((line) => line.cartItemId !== cartItemId) }))
-  },
+      removeItem: (cartItemId) => {
+        set((state) => ({ items: state.items.filter((line) => line.cartItemId !== cartItemId) }))
+      },
 
-  clearCart: () => set({ items: [] }),
-}))
+      clearCart: () => set({ items: [] }),
+    }),
+    { name: 'arrecife-carrito' }
+  )
+)
 
 export function selectTotalItems(state) {
   return state.items.reduce((sum, line) => sum + line.quantity, 0)

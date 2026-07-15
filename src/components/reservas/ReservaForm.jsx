@@ -16,7 +16,16 @@ function Field({ label, error, children }) {
   )
 }
 
-export default function ReservaForm({ fields, errors, setField, status, requiresPhoneCall, minDate, onSubmit }) {
+export default function ReservaForm({
+  fields,
+  errors,
+  setField,
+  status,
+  errorMessage,
+  requiresPhoneCall,
+  minDate,
+  onSubmit,
+}) {
   const isSubmitting = status === 'submitting'
 
   return (
@@ -123,6 +132,12 @@ export default function ReservaForm({ fields, errors, setField, status, requires
           className={`${inputClass} resize-none`}
         />
       </Field>
+
+      {status === 'error' && (
+        <p className="text-xs text-title bg-title/5 border border-title/20 rounded-lg px-3.5 py-2.5">
+          {errorMessage || 'Hubo un problema al enviar tu reserva. Probá de nuevo.'}
+        </p>
+      )}
 
       <button
         type="submit"

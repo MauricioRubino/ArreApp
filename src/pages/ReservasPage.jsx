@@ -5,8 +5,18 @@ import ReservaForm from '../components/reservas/ReservaForm'
 import ReservaConfirmation from '../components/reservas/ReservaConfirmation'
 
 export default function ReservasPage() {
-  const { fields, setField, errors, status, reservation, submit, reset, minDate, requiresPhoneCall } =
-    useReservaForm()
+  const {
+    fields,
+    setField,
+    errors,
+    status,
+    errorMessage,
+    reservation,
+    submit,
+    reset,
+    minDate,
+    requiresPhoneCall,
+  } = useReservaForm()
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
@@ -33,6 +43,7 @@ export default function ReservasPage() {
           errors={errors}
           setField={setField}
           status={status}
+          errorMessage={errorMessage}
           requiresPhoneCall={requiresPhoneCall}
           minDate={minDate}
           onSubmit={submit}

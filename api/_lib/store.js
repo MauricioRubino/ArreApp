@@ -5,6 +5,7 @@
 import { kv } from './kv.js'
 
 const COUNTER_KEY = 'contador:pedidos'
+const PENDING_DETAILS_KEY = 'pendientes:detalles'
 const RECORD_TTL_SECONDS = 60 * 60 * 24 * 3 // 3 días
 
 function recordKey(numero) {
@@ -29,4 +30,16 @@ export async function updateRecordEstado(numero, estado) {
   const updated = { ...record, estado }
   await saveRecord(numero, updated)
   return updated
+}
+
+// Cuando el aviso multilínea al dueño no se puede entregar (ventana de 24hs
+// cerrada), el detalle queda en cola y se le manda apenas él escriba algo.
+export async function queuePendingDetail(text) {
+  await kv.rpush(PENDING_DETAILS_KEY, text)
+}
+
+export async function flushPendingDetails() {
+  const details = await kv.lrange(PENDING_DETAILS_KEY, 0, -1)
+  if (details.length > 0) await kv.del(PENDING_DETAILS_KEY)
+  return details
 }

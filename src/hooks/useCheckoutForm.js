@@ -30,6 +30,7 @@ export function useCheckoutForm() {
   const [location, setLocation] = useState(DEFAULT_LOCATION)
   const [errors, setErrors] = useState({})
   const [status, setStatus] = useState('idle') // idle | submitting | error
+  const [errorMessage, setErrorMessage] = useState(null)
   // No es state: la navegación a la confirmación puede quedar pendiente
   // (React Router la trata como una transición) mientras el carrito ya
   // se vació, y no queremos que ese instante dispare el guard de "carrito
@@ -51,6 +52,7 @@ export function useCheckoutForm() {
     if (Object.keys(validationErrors).length > 0) return
 
     setStatus('submitting')
+    setErrorMessage(null)
     try {
       const result = await createOrder({
         ...fields,
@@ -58,9 +60,29 @@ export function useCheckoutForm() {
         items,
         total: totalPrice,
       })
-      const numero = await notifyOwnerOfOrder(result)
+
+      const notification = await notifyOwnerOfOrder(result)
+
+      if (notification.status === 'rejected') {
+        setStatus('error')
+        setErrorMessage(
+          notification.reason === 'sin-stock'
+            ? `Estos platos se quedaron sin stock: ${notification.items.join(', ')}. Quitalos del carrito para continuar.`
+            : 'No pudimos procesar el pedido. Revisá los datos e intentá de nuevo.'
+        )
+        return
+      }
+
       hasSubmittedRef.current = true
-      navigate('/delivery/confirmacion', { state: { order: { ...result, numero } } })
+      navigate('/delivery/confirmacion', {
+        state: {
+          order: {
+            ...result,
+            numero: notification.numero ?? null,
+            notificationDelivered: notification.status === 'sent' && notification.delivered,
+          },
+        },
+      })
       clearCart()
     } catch {
       setStatus('error')
@@ -74,6 +96,7 @@ export function useCheckoutForm() {
     setLocation,
     errors,
     status,
+    errorMessage,
     submit,
     items,
     totalPrice,

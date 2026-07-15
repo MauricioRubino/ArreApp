@@ -56,6 +56,12 @@ export const kv = {
     return next
   },
 
+  async expire(key, seconds) {
+    if (client) return client.expire(key, seconds)
+    const entry = memoryStore.get(key)
+    if (entry) entry.expiresAt = Date.now() + seconds * 1000
+  },
+
   async sadd(key, member) {
     if (client) return client.sadd(key, member)
     const set = new Set(memoryGet(key) || [])
@@ -73,5 +79,18 @@ export const kv = {
   async smembers(key) {
     if (client) return client.smembers(key)
     return memoryGet(key) || []
+  },
+
+  async rpush(key, value) {
+    if (client) return client.rpush(key, value)
+    const list = memoryGet(key) || []
+    list.push(value)
+    memorySet(key, list)
+  },
+
+  async lrange(key, start, stop) {
+    if (client) return client.lrange(key, start, stop)
+    const list = memoryGet(key) || []
+    return stop === -1 ? list.slice(start) : list.slice(start, stop + 1)
   },
 }

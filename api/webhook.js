@@ -3,22 +3,28 @@
 // GET: handshake de verificación que Meta hace una sola vez al configurar
 // el webhook en su panel (compara WHATSAPP_WEBHOOK_VERIFY_TOKEN).
 //
-// POST: mensajes entrantes. Sólo procesa mensajes que vengan del número
-// del dueño (OWNER_WHATSAPP_NUMBER) — cualquier otro remitente se ignora.
-// Reconoce tres tipos de comandos:
-//   1. Estado de pedido/reserva: "ok #3", "listo #3", "en camino #3",
-//      "confirmada #5", "cancelada #5"
-//   2. Sin stock: "no hay rabas", "se acabó el pollo", "sin stock de X"
-//   3. Reponer stock: "sí hay rabas", "volvió el stock de X"
-//   4. Aclaración numerada: una respuesta con sólo un número, cuando hay
-//      una desambiguación de stock pendiente.
+// POST: mensajes entrantes. Seguridad en capas:
+//   1. La Callback URL se configura en Meta con el token en la query
+//      (https://.../api/webhook?token=EL_TOKEN) y acá se exige que
+//      coincida — nadie sin el token puede llegar al parseo.
+//   2. Si META_APP_SECRET está configurado y el runtime expone el body
+//      crudo, se valida además la firma X-Hub-Signature-256 de Meta.
+//   3. Sólo se procesan mensajes cuyo remitente es OWNER_WHATSAPP_NUMBER.
 //
-// Variables de entorno (ver .env.example):
-//   WHATSAPP_WEBHOOK_VERIFY_TOKEN, OWNER_WHATSAPP_NUMBER,
-//   WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID
+// Comandos del dueño:
+//   - Estado: "ok #3", "listo #3", "en camino #3", "confirmada #5",
+//     "cancelada #5" → avisa al cliente (por plantilla, es un mensaje
+//     iniciado por el negocio) y le confirma al dueño (texto libre,
+//     gratis: él acaba de escribir, la ventana de 24hs está abierta).
+//   - Stock: "no hay rabas" / "sí hay rabas" (con desambiguación numerada
+//     si el nombre matchea varios platos).
+//
+// Además, si había detalles de pedidos en cola (avisos que no se pudieron
+// entregar como texto), se le mandan apenas escribe cualquier cosa.
 
-import { sendWhatsAppMessage } from './_lib/whatsapp.js'
-import { getRecord, updateRecordEstado } from './_lib/store.js'
+import crypto from 'node:crypto'
+import { sendWhatsAppText, sendWhatsAppTemplate } from './_lib/whatsapp.js'
+import { getRecord, updateRecordEstado, flushPendingDetails } from './_lib/store.js'
 import {
   markOutOfStock,
   markInStock,
@@ -27,6 +33,7 @@ import {
   clearPendingDisambiguation,
 } from './_lib/stockStore.js'
 import { findMenuItemsByName, getMenuItemById } from './_lib/matchMenuItem.js'
+import { normalizePhone } from './_lib/phone.js'
 
 const STATUS_COMMANDS = {
   ok: {
@@ -90,13 +97,13 @@ async function handleStatusCommand(command, ownerNumber) {
   const record = await getRecord(command.numero)
 
   if (!record) {
-    await sendWhatsAppMessage(ownerNumber, `No encontré el #${command.numero}.`)
+    await sendWhatsAppText(ownerNumber, `No encontré el #${command.numero}.`)
     return
   }
 
   if (record.tipo !== definition.tipo) {
     const esperado = record.tipo === 'order' ? 'ok, listo o en camino' : 'confirmada o cancelada'
-    await sendWhatsAppMessage(
+    await sendWhatsAppText(
       ownerNumber,
       `El #${command.numero} es ${record.tipo === 'order' ? 'un pedido' : 'una reserva'}, usá: ${esperado}.`
     )
@@ -104,8 +111,9 @@ async function handleStatusCommand(command, ownerNumber) {
   }
 
   await updateRecordEstado(command.numero, definition.estado)
-  await sendWhatsAppMessage(record.telefono, definition.mensajeCliente(command.numero))
-  await sendWhatsAppMessage(
+  // Al cliente se le inicia conversación: va por plantilla (una línea).
+  await sendWhatsAppTemplate(record.telefono, definition.mensajeCliente(command.numero))
+  await sendWhatsAppText(
     ownerNumber,
     `✅ Le avisé a ${record.nombre} sobre el #${command.numero} (${definition.estado}).`
   )
@@ -115,7 +123,7 @@ async function handleStockCommand(command, ownerNumber) {
   const matches = findMenuItemsByName(command.query)
 
   if (matches.length === 0) {
-    await sendWhatsAppMessage(ownerNumber, `No encontré ningún plato con "${command.query}" en el nombre.`)
+    await sendWhatsAppText(ownerNumber, `No encontré ningún plato con "${command.query}" en el nombre.`)
     return
   }
 
@@ -125,7 +133,7 @@ async function handleStockCommand(command, ownerNumber) {
       matches.map((item) => item.id),
       command.action
     )
-    await sendWhatsAppMessage(
+    await sendWhatsAppText(
       ownerNumber,
       `Encontré varios platos con "${command.query}":\n${listado}\n\nRespondé con el número del que corresponde.`
     )
@@ -141,10 +149,10 @@ async function applyStockAction(itemId, action, ownerNumber) {
 
   if (action === 'remove') {
     await markOutOfStock(itemId)
-    await sendWhatsAppMessage(ownerNumber, `🚫 Marqué "${item.name}" sin stock.`)
+    await sendWhatsAppText(ownerNumber, `🚫 Marqué "${item.name}" sin stock.`)
   } else {
     await markInStock(itemId)
-    await sendWhatsAppMessage(ownerNumber, `✅ Repuse el stock de "${item.name}".`)
+    await sendWhatsAppText(ownerNumber, `✅ Repuse el stock de "${item.name}".`)
   }
 }
 
@@ -154,7 +162,7 @@ async function handleBareNumber(numero, ownerNumber) {
 
   const itemId = pending.candidates[numero - 1]
   if (!itemId) {
-    await sendWhatsAppMessage(ownerNumber, `Ese número no está en la lista. Probá de nuevo.`)
+    await sendWhatsAppText(ownerNumber, `Ese número no está en la lista. Probá de nuevo.`)
     return
   }
 
@@ -162,15 +170,48 @@ async function handleBareNumber(numero, ownerNumber) {
   await applyStockAction(itemId, pending.action, ownerNumber)
 }
 
-function verifyWebhookRequest(req) {
+function verifyGetHandshake(req) {
   const mode = req.query['hub.mode']
   const token = req.query['hub.verify_token']
   return mode === 'subscribe' && token === process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN
 }
 
+function verifyPostToken(req) {
+  const expected = process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN
+  // Sin token configurado (etapa de desarrollo) no se exige.
+  if (!expected) return true
+  return req.query?.token === expected
+}
+
+function verifySignature(req) {
+  const secret = process.env.META_APP_SECRET
+  if (!secret) return true
+
+  const signature = req.headers['x-hub-signature-256']
+  if (!signature) return false
+
+  // La firma se calcula sobre el body crudo. Si el runtime no lo expone
+  // (Vercel lo parsea antes), no se puede verificar de forma confiable:
+  // queda la protección del token en la query + el filtro por remitente.
+  const rawBody = req.rawBody
+    ? Buffer.isBuffer(req.rawBody)
+      ? req.rawBody
+      : Buffer.from(req.rawBody)
+    : null
+  if (!rawBody) {
+    console.warn('[webhook] Body crudo no disponible; no se pudo verificar la firma de Meta.')
+    return true
+  }
+
+  const expected = 'sha256=' + crypto.createHmac('sha256', secret).update(rawBody).digest('hex')
+  const a = Buffer.from(signature)
+  const b = Buffer.from(expected)
+  return a.length === b.length && crypto.timingSafeEqual(a, b)
+}
+
 export default async function handler(req, res) {
   if (req.method === 'GET') {
-    if (verifyWebhookRequest(req)) {
+    if (verifyGetHandshake(req)) {
       res.status(200).send(req.query['hub.challenge'])
     } else {
       res.status(403).end()
@@ -183,12 +224,22 @@ export default async function handler(req, res) {
     return
   }
 
+  if (!verifyPostToken(req) || !verifySignature(req)) {
+    res.status(403).end()
+    return
+  }
+
   const message = req.body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]
-  const ownerNumber = process.env.OWNER_WHATSAPP_NUMBER
+  const ownerNumber = normalizePhone(process.env.OWNER_WHATSAPP_NUMBER)
 
   // Sin owner configurado no hay a quién contestar; y sólo procesamos
   // mensajes que vengan de ese número.
-  if (!message || !ownerNumber || message.from !== ownerNumber || message.type !== 'text') {
+  if (
+    !message ||
+    !ownerNumber ||
+    normalizePhone(message.from) !== ownerNumber ||
+    message.type !== 'text'
+  ) {
     res.status(200).end()
     return
   }
@@ -196,6 +247,13 @@ export default async function handler(req, res) {
   const text = message.text.body
 
   try {
+    // El dueño escribió: la ventana de 24hs está abierta. Si quedaron
+    // detalles de pedidos sin entregar, van primero.
+    const pendingDetails = await flushPendingDetails()
+    for (const detail of pendingDetails) {
+      await sendWhatsAppText(ownerNumber, detail)
+    }
+
     const statusCommand = parseStatusCommand(text)
     if (statusCommand) {
       await handleStatusCommand(statusCommand, ownerNumber)

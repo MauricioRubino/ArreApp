@@ -1,20 +1,26 @@
-// Función serverless (Vercel) que arma el mensaje de WhatsApp para el
-// dueño a partir de un pedido o una reserva, le asigna un número (para
-// poder referenciarlo después, ej. "ok #3") y lo guarda para poder
-// correlacionar la respuesta del dueño más adelante (ver webhook.js).
+// Función serverless (Vercel) que procesa un pedido o una reserva:
+// valida y recalcula los datos server-side, le asigna un número
+// correlativo, guarda el registro (para "ok #3" del dueño) y le avisa
+// al dueño por WhatsApp.
 //
-// Mientras no exista una cuenta de WhatsApp Business Platform conectada
-// (faltan las variables de entorno de abajo), el mensaje sólo se deja
-// registrado en los logs de la función — el pedido/reserva del cliente
-// nunca se ve afectado por esto.
+// Estrategia de envío al dueño (por las reglas de plantillas de Meta,
+// que no permiten saltos de línea en los parámetros):
+//   1. Se intenta un mensaje de texto libre multilínea — se entrega si
+//      el dueño escribió en las últimas 24hs (gratis, dentro de la
+//      ventana de servicio).
+//   2. Si falla, se manda una plantilla de una línea ("Tenés un pedido
+//      nuevo (#3)...") y el detalle queda en cola: se le envía apenas
+//      el dueño responda cualquier cosa (ver webhook.js).
 //
-// Variables de entorno necesarias para el envío real (ver .env.example):
-//   WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID, OWNER_WHATSAPP_NUMBER,
-//   WHATSAPP_TEMPLATE_NAME (opcional), UPSTASH_REDIS_REST_URL,
-//   UPSTASH_REDIS_REST_TOKEN
+// Sin credenciales configuradas todo queda simulado en los logs y la
+// respuesta lleva delivered:false — el frontend muestra entonces un
+// fallback para que el cliente mande el pedido por wa.me él mismo.
 
-import { sendWhatsAppMessage } from './_lib/whatsapp.js'
-import { getNextNumber, saveRecord } from './_lib/store.js'
+import { sendWhatsAppText, sendWhatsAppTemplate, isWhatsAppConfigured } from './_lib/whatsapp.js'
+import { getNextNumber, saveRecord, queuePendingDetail } from './_lib/store.js'
+import { validateOrder, validateReservation } from './_lib/validation.js'
+import { checkNotifyRateLimit, getClientIp } from './_lib/rateLimit.js'
+import { normalizePhone } from './_lib/phone.js'
 
 const METODOS_PAGO_LABELS = {
   efectivo: 'Efectivo',
@@ -41,7 +47,7 @@ function formatFecha(iso) {
 }
 
 function buildOrderMessage(numero, order) {
-  const itemLines = (order.items || [])
+  const itemLines = order.items
     .map((item) => {
       const guarnicion = item.guarnicion ? ` (${item.guarnicion})` : ''
       return `${item.quantity}x ${item.name}${guarnicion} - ${formatPrice(item.price * item.quantity)}`
@@ -49,7 +55,6 @@ function buildOrderMessage(numero, order) {
     .join('\n')
 
   const direccion = order.referenciaHogar ? `${order.calle} (${order.referenciaHogar})` : order.calle
-  const metodoPago = METODOS_PAGO_LABELS[order.metodoPago] || order.metodoPago
   const ubicacion = order.location
     ? `https://maps.google.com/?q=${order.location.lat},${order.location.lng}`
     : ''
@@ -66,7 +71,7 @@ function buildOrderMessage(numero, order) {
     itemLines,
     '',
     `*Total:* ${formatPrice(order.total)}`,
-    `*Pago:* ${metodoPago}`,
+    `*Pago:* ${METODOS_PAGO_LABELS[order.metodoPago]}`,
     '',
     `Respondé "ok #${numero}", "listo #${numero}" o "en camino #${numero}" para avisarle al cliente.`,
   ]
@@ -75,8 +80,6 @@ function buildOrderMessage(numero, order) {
 }
 
 function buildReservationMessage(numero, reservation) {
-  const zona = ZONA_LABELS[reservation.zona] || reservation.zona
-
   return [
     `📅 *Reserva #${numero} - Arrecife*`,
     '',
@@ -85,7 +88,7 @@ function buildReservationMessage(numero, reservation) {
     `*Fecha:* ${formatFecha(reservation.fecha)}`,
     `*Horario:* ${reservation.hora}`,
     `*Personas:* ${reservation.personas}`,
-    `*Zona:* ${zona}`,
+    `*Zona:* ${ZONA_LABELS[reservation.zona]}`,
     reservation.comentario ? `*Comentarios:* ${reservation.comentario}` : null,
     '',
     `Respondé "confirmada #${numero}" o "cancelada #${numero}" para avisarle al cliente.`,
@@ -94,38 +97,80 @@ function buildReservationMessage(numero, reservation) {
     .join('\n')
 }
 
+async function notifyOwner(ownerNumber, numero, tipo, message) {
+  const textResult = await sendWhatsAppText(ownerNumber, message)
+  if (textResult.ok) {
+    // Simulado (sin credenciales) cuenta como NO entregado de verdad.
+    return !textResult.simulated
+  }
+
+  // Fuera de la ventana de 24hs (o el texto falló por otro motivo):
+  // plantilla corta de una línea + detalle en cola para cuando responda.
+  await queuePendingDetail(message)
+  const etiqueta = tipo === 'order' ? 'un pedido nuevo' : 'una reserva nueva'
+  const pingResult = await sendWhatsAppTemplate(
+    ownerNumber,
+    `Tenés ${etiqueta} (#${numero}). Respondé este mensaje y te paso el detalle.`
+  )
+  return pingResult.ok && !pingResult.simulated
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' })
     return
   }
 
-  const { type, payload } = req.body || {}
-  if (type !== 'order' && type !== 'reservation') {
-    res.status(400).json({ error: 'Tipo inválido, debe ser "order" o "reservation".' })
+  const allowed = await checkNotifyRateLimit(getClientIp(req))
+  if (!allowed) {
+    res.status(429).json({ error: 'rate-limited' })
     return
   }
 
+  const { type, payload } = req.body || {}
+  if (type !== 'order' && type !== 'reservation') {
+    res.status(400).json({ error: 'invalido', details: ['type'] })
+    return
+  }
+
+  const validation =
+    type === 'order' ? await validateOrder(payload) : validateReservation(payload)
+
+  if (!validation.ok) {
+    if (validation.sinStock) {
+      res.status(409).json({ error: 'sin-stock', items: validation.sinStock })
+    } else {
+      res.status(400).json({ error: 'invalido', details: validation.errors })
+    }
+    return
+  }
+
+  const data = type === 'order' ? validation.order : validation.reservation
   const numero = await getNextNumber()
 
   await saveRecord(numero, {
     tipo: type,
-    nombre: payload.nombre,
-    telefono: payload.telefono,
+    nombre: data.nombre,
+    telefono: data.telefono,
     estado: 'nuevo',
     createdAt: Date.now(),
   })
 
   const message =
-    type === 'order' ? buildOrderMessage(numero, payload) : buildReservationMessage(numero, payload)
+    type === 'order' ? buildOrderMessage(numero, data) : buildReservationMessage(numero, data)
 
-  const ownerNumber = process.env.OWNER_WHATSAPP_NUMBER
-  if (!ownerNumber) {
+  const ownerNumber = normalizePhone(process.env.OWNER_WHATSAPP_NUMBER)
+  let delivered = false
+  if (ownerNumber) {
+    delivered = await notifyOwner(ownerNumber, numero, type, message)
+  } else {
     console.log('[notify] OWNER_WHATSAPP_NUMBER no configurado. Mensaje simulado:\n' + message)
-    res.status(200).json({ ok: true, simulated: true, numero })
-    return
   }
 
-  const result = await sendWhatsAppMessage(ownerNumber, message)
-  res.status(result.ok ? 200 : 502).json({ ...result, numero })
+  res.status(200).json({
+    ok: true,
+    numero,
+    delivered,
+    simulated: !isWhatsAppConfigured() || !ownerNumber,
+  })
 }

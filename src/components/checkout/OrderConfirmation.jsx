@@ -1,9 +1,12 @@
-import { CheckCircle2, MessageCircle } from 'lucide-react'
+import { CheckCircle2, MessageCircle, TriangleAlert } from 'lucide-react'
 import { formatPrice } from '../../utils/format'
 import { METODOS_PAGO } from '../../data/paymentData'
+import { RESTAURANT_WHATSAPP } from '../../data/contactData'
+import { buildOrderWhatsAppText, buildWaLink } from '../../utils/waLink'
 
 export default function OrderConfirmation({ order }) {
   const metodoPagoLabel = METODOS_PAGO.find((m) => m.id === order.metodoPago)?.label
+  const needsManualSend = order.notificationDelivered === false
 
   return (
     <div className="max-w-xl mx-auto text-center border border-linea rounded-lg px-6 sm:px-10 py-12 bg-crema-soft/60">
@@ -18,6 +21,27 @@ export default function OrderConfirmation({ order }) {
       )}
       <h2 className="font-display text-2xl text-tinta tracking-wide mb-2">¡Tu pedido está listo!</h2>
       <p className="text-sm text-tinta-dim mb-8">Ya lo recibimos y lo estamos preparando.</p>
+
+      {needsManualSend && (
+        <div className="text-left text-sm border border-title/30 bg-title/5 rounded-lg px-4 py-3 mb-8">
+          <p className="flex items-start gap-2 text-tinta mb-2">
+            <TriangleAlert className="w-4 h-4 text-title shrink-0 mt-0.5" strokeWidth={2} />
+            No pudimos avisarle automáticamente al restaurante.
+          </p>
+          {RESTAURANT_WHATSAPP ? (
+            <a
+              href={buildWaLink(RESTAURANT_WHATSAPP, buildOrderWhatsAppText(order))}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-block bg-title hover:bg-title-soft text-crema text-xs font-medium tracking-wide rounded-lg px-4 py-2 transition-colors"
+            >
+              Enviar el pedido por WhatsApp
+            </a>
+          ) : (
+            <p className="text-tinta-dim">Comunicate con el restaurante para confirmar que lo hayan recibido.</p>
+          )}
+        </div>
+      )}
 
       <div className="text-left border-t border-linea pt-6 mb-6">
         <p className="text-xs uppercase tracking-wide text-tinta-dim mb-3">Detalle del pedido</p>

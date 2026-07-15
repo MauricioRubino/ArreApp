@@ -1,8 +1,15 @@
-// Avisa al dueño por WhatsApp cuando hay un pedido o una reserva nueva,
-// y le asigna un número (el dueño lo usa para responder por WhatsApp,
-// ej. "ok #3"). Es best-effort: si el backend todavía no existe
-// (desarrollo local) o falla, no debe interrumpir el pedido/reserva del
-// cliente — simplemente no habrá número asignado.
+// Avisa al dueño por WhatsApp cuando hay un pedido o una reserva nueva.
+// El backend valida y recalcula todo server-side, así que la respuesta
+// puede ser un rechazo (ej. platos sin stock) — en ese caso el pedido NO
+// debe confirmarse. Si el backend no responde o el aviso no se entregó,
+// el flujo del cliente sigue, pero con delivered:false para que la
+// pantalla de confirmación ofrezca el respaldo por wa.me.
+//
+// Retorna siempre uno de:
+//   { status: 'sent', numero, delivered }  → procesado (delivered indica
+//     si el dueño recibió el aviso de verdad)
+//   { status: 'rejected', reason, items? } → el backend rechazó el envío
+//   { status: 'unreachable' }              → no hay backend (dev) o falló
 
 const NOTIFY_ENDPOINT = '/api/notify'
 
@@ -13,15 +20,28 @@ async function notify(type, payload) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type, payload }),
     })
-    if (!response.ok) {
-      console.warn('[notificationService] El aviso por WhatsApp no se pudo enviar.')
-      return null
+
+    let data = null
+    try {
+      data = await response.json()
+    } catch {
+      // Respuesta no-JSON (ej. 404 html del dev server): backend ausente.
     }
-    const data = await response.json()
-    return data.numero ?? null
+
+    if (response.status === 409 && data?.error === 'sin-stock') {
+      return { status: 'rejected', reason: 'sin-stock', items: data.items ?? [] }
+    }
+    if (response.status === 400) {
+      return { status: 'rejected', reason: 'invalido' }
+    }
+    if (!response.ok || !data?.ok) {
+      return { status: 'unreachable' }
+    }
+
+    return { status: 'sent', numero: data.numero ?? null, delivered: Boolean(data.delivered) }
   } catch {
     console.warn('[notificationService] No se pudo contactar al backend de notificaciones.')
-    return null
+    return { status: 'unreachable' }
   }
 }
 

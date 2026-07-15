@@ -11,6 +11,7 @@ export default function CheckoutPage() {
     setLocation,
     errors,
     status,
+    errorMessage,
     submit,
     items,
     totalPrice,
@@ -45,6 +46,7 @@ export default function CheckoutPage() {
         location={location}
         setLocation={setLocation}
         status={status}
+        errorMessage={errorMessage}
         items={items}
         totalPrice={totalPrice}
         onSubmit={submit}

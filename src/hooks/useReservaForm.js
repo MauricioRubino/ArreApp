@@ -37,6 +37,7 @@ export function useReservaForm() {
   const [fields, setFields] = useState(INITIAL_FIELDS)
   const [errors, setErrors] = useState({})
   const [status, setStatus] = useState('idle') // idle | submitting | success | error
+  const [errorMessage, setErrorMessage] = useState(null)
   const [reservation, setReservation] = useState(null)
 
   function setField(name, value) {
@@ -50,13 +51,26 @@ export function useReservaForm() {
     if (Object.keys(validationErrors).length > 0) return
 
     setStatus('submitting')
+    setErrorMessage(null)
     try {
       const result = await createReservation({
         ...fields,
         personas: Number(fields.personas),
       })
-      const numero = await notifyOwnerOfReservation(result)
-      setReservation({ ...result, numero })
+
+      const notification = await notifyOwnerOfReservation(result)
+
+      if (notification.status === 'rejected') {
+        setStatus('error')
+        setErrorMessage('No pudimos procesar la reserva. Revisá los datos e intentá de nuevo.')
+        return
+      }
+
+      setReservation({
+        ...result,
+        numero: notification.numero ?? null,
+        notificationDelivered: notification.status === 'sent' && notification.delivered,
+      })
       setStatus('success')
     } catch {
       setStatus('error')
@@ -67,6 +81,7 @@ export function useReservaForm() {
     setFields(INITIAL_FIELDS)
     setErrors({})
     setStatus('idle')
+    setErrorMessage(null)
     setReservation(null)
   }
 
@@ -75,6 +90,7 @@ export function useReservaForm() {
     setField,
     errors,
     status,
+    errorMessage,
     reservation,
     submit,
     reset,
