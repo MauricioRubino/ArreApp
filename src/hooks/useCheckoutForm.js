@@ -4,9 +4,11 @@ import { createOrder } from '../services/checkoutService'
 import { notifyOwnerOfOrder } from '../services/notificationService'
 import { useCartStore, selectTotalPrice } from '../store/cartStore'
 import { DEFAULT_LOCATION } from '../data/locationData'
+import { DEFAULT_COUNTRY, buildFullPhone } from '../data/countryCodes'
 
 const INITIAL_FIELDS = {
   nombre: '',
+  codigoPais: DEFAULT_COUNTRY,
   telefono: '',
   calle: '',
   referenciaHogar: '',
@@ -16,7 +18,7 @@ const INITIAL_FIELDS = {
 function validate(fields) {
   const errors = {}
   if (!fields.nombre.trim()) errors.nombre = 'Ingresá tu nombre.'
-  if (!/^[\d\s+()-]{6,}$/.test(fields.telefono.trim())) {
+  if (fields.telefono.replace(/\D/g, '').length < 6) {
     errors.telefono = 'Ingresá un teléfono válido.'
   }
   if (!fields.calle.trim()) errors.calle = 'Ingresá tu calle y número.'
@@ -56,6 +58,8 @@ export function useCheckoutForm() {
     try {
       const result = await createOrder({
         ...fields,
+        // El número exacto para WhatsApp: prefijo del país elegido + local.
+        telefono: buildFullPhone(fields.codigoPais, fields.telefono),
         location,
         items,
         total: totalPrice,

@@ -2,9 +2,11 @@ import { useState } from 'react'
 import { createReservation } from '../services/reservasService'
 import { notifyOwnerOfReservation } from '../services/notificationService'
 import { PERSONAS_MAX_ONLINE } from '../data/reservasData'
+import { DEFAULT_COUNTRY, buildFullPhone } from '../data/countryCodes'
 
 const INITIAL_FIELDS = {
   nombre: '',
+  codigoPais: DEFAULT_COUNTRY,
   telefono: '',
   fecha: '',
   hora: '',
@@ -22,7 +24,7 @@ function todayISO() {
 function validate(fields) {
   const errors = {}
   if (!fields.nombre.trim()) errors.nombre = 'Ingresá tu nombre.'
-  if (!/^[\d\s+()-]{6,}$/.test(fields.telefono.trim())) {
+  if (fields.telefono.replace(/\D/g, '').length < 6) {
     errors.telefono = 'Ingresá un teléfono válido (te escribimos por acá).'
   }
   if (!fields.fecha) errors.fecha = 'Elegí una fecha.'
@@ -55,6 +57,8 @@ export function useReservaForm() {
     try {
       const result = await createReservation({
         ...fields,
+        // El número exacto para WhatsApp: prefijo del país elegido + local.
+        telefono: buildFullPhone(fields.codigoPais, fields.telefono),
         personas: Number(fields.personas),
       })
 

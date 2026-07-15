@@ -1,4 +1,5 @@
 import { Loader2 } from 'lucide-react'
+import PhoneInput from '../forms/PhoneInput'
 import { TURNOS, ZONAS, PERSONAS_MAX_ONLINE } from '../../data/reservasData'
 
 const inputClass =
@@ -48,12 +49,11 @@ export default function ReservaForm({
         </Field>
 
         <Field label="Teléfono (WhatsApp)" error={errors.telefono}>
-          <input
-            type="tel"
+          <PhoneInput
+            country={fields.codigoPais}
+            onCountryChange={(value) => setField('codigoPais', value)}
             value={fields.telefono}
-            onChange={(e) => setField('telefono', e.target.value)}
-            placeholder="+598 9x xxx xxx"
-            className={inputClass}
+            onChange={(value) => setField('telefono', value)}
           />
         </Field>
       </div>

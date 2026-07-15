@@ -1,5 +1,6 @@
 import { Loader2 } from 'lucide-react'
 import LocationMap from './LocationMap'
+import PhoneInput from '../forms/PhoneInput'
 import { formatPrice } from '../../utils/format'
 import { METODOS_PAGO } from '../../data/paymentData'
 
@@ -70,13 +71,12 @@ export default function CheckoutForm({
           />
         </Field>
 
-        <Field label="Teléfono" error={errors.telefono}>
-          <input
-            type="tel"
+        <Field label="Teléfono (WhatsApp)" error={errors.telefono}>
+          <PhoneInput
+            country={fields.codigoPais}
+            onCountryChange={(value) => setField('codigoPais', value)}
             value={fields.telefono}
-            onChange={(e) => setField('telefono', e.target.value)}
-            placeholder="+598 9x xxx xxx"
-            className={inputClass}
+            onChange={(value) => setField('telefono', value)}
           />
         </Field>
       </div>
