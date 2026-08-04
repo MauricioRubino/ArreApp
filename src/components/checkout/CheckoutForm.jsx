@@ -1,8 +1,12 @@
+import { lazy, Suspense } from 'react'
 import { Loader2 } from 'lucide-react'
-import LocationMap from './LocationMap'
 import PhoneInput from '../forms/PhoneInput'
 import { formatPrice } from '../../utils/format'
 import { METODOS_PAGO } from '../../data/paymentData'
+
+// Leaflet pesa ~150 kB y sólo se usa acá: se carga al abrir el checkout,
+// no al entrar a la carta.
+const LocationMap = lazy(() => import('./LocationMap'))
 
 const inputClass =
   'w-full rounded-lg border border-linea bg-crema-soft/40 px-3.5 py-2.5 text-sm text-tinta placeholder:text-tinta-dim/60 focus:outline-none focus:border-title transition-colors'
@@ -103,7 +107,15 @@ export default function CheckoutForm({
 
       <div>
         <label className={labelClass}>Ubicación en el mapa</label>
-        <LocationMap value={location} onChange={setLocation} />
+        <Suspense
+          fallback={
+            <div className="h-[320px] rounded-lg border border-linea bg-crema-soft/40 flex items-center justify-center">
+              <Loader2 className="w-5 h-5 text-tinta-dim animate-spin" strokeWidth={2} />
+            </div>
+          }
+        >
+          <LocationMap value={location} onChange={setLocation} />
+        </Suspense>
         <p className="text-xs text-tinta-dim mt-1.5">
           Tocá el mapa o arrastrá el pin para marcar exactamente dónde entregamos tu pedido.
         </p>
