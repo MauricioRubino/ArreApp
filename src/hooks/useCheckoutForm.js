@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { createOrder } from '../services/checkoutService'
 import { notifyOwnerOfOrder } from '../services/notificationService'
 import { useCartStore, selectTotalPrice } from '../store/cartStore'
-import { DEFAULT_LOCATION } from '../data/locationData'
+import { DEFAULT_LOCATION, isWithinDeliveryArea, DELIVERY_AREA_LABEL } from '../data/locationData'
 import { DEFAULT_COUNTRY, buildFullPhone } from '../data/countryCodes'
+import { isOpenAt, nextOpeningLabel, HORARIO_LABEL } from '../data/scheduleData'
 
 const INITIAL_FIELDS = {
   nombre: '',
@@ -13,6 +14,17 @@ const INITIAL_FIELDS = {
   calle: '',
   referenciaHogar: '',
   metodoPago: '',
+}
+
+const DEFAULT_REJECTION = 'No pudimos procesar el pedido. Revisá los datos e intentá de nuevo.'
+
+const REJECTION_MESSAGES = {
+  'sin-stock': (n) =>
+    `Estos platos se quedaron sin stock: ${n.items.join(', ')}. Quitalos del carrito para continuar.`,
+  cerrado: () =>
+    `El restaurante está cerrado en este momento. Atendemos de ${HORARIO_LABEL}: volvé ${nextOpeningLabel()}.`,
+  'fuera-de-zona': () =>
+    `Por ahora sólo entregamos en ${DELIVERY_AREA_LABEL}. Movés el pin del mapa dentro de la zona marcada para continuar.`,
 }
 
 function validate(fields) {
@@ -69,11 +81,7 @@ export function useCheckoutForm() {
 
       if (notification.status === 'rejected') {
         setStatus('error')
-        setErrorMessage(
-          notification.reason === 'sin-stock'
-            ? `Estos platos se quedaron sin stock: ${notification.items.join(', ')}. Quitalos del carrito para continuar.`
-            : 'No pudimos procesar el pedido. Revisá los datos e intentá de nuevo.'
-        )
+        setErrorMessage(REJECTION_MESSAGES[notification.reason]?.(notification) ?? DEFAULT_REJECTION)
         return
       }
 
@@ -105,5 +113,12 @@ export function useCheckoutForm() {
     items,
     totalPrice,
     hasSubmitted: hasSubmittedRef.current,
+    // Avisos inmediatos, sin esperar al envío. El backend los revalida
+    // igual: esto es sólo para que el cliente no complete el formulario
+    // entero antes de enterarse.
+    estaAbierto: isOpenAt(),
+    proximaApertura: nextOpeningLabel(),
+    horarioLabel: HORARIO_LABEL,
+    ubicacionEnZona: isWithinDeliveryArea(location),
   }
 }

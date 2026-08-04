@@ -16,6 +16,10 @@ export default function CheckoutPage() {
     items,
     totalPrice,
     hasSubmitted,
+    estaAbierto,
+    proximaApertura,
+    horarioLabel,
+    ubicacionEnZona,
   } = useCheckoutForm()
 
   if (items.length === 0 && !hasSubmitted) {
@@ -50,6 +54,10 @@ export default function CheckoutPage() {
         items={items}
         totalPrice={totalPrice}
         onSubmit={submit}
+        estaAbierto={estaAbierto}
+        proximaApertura={proximaApertura}
+        horarioLabel={horarioLabel}
+        ubicacionEnZona={ubicacionEnZona}
       />
     </div>
   )

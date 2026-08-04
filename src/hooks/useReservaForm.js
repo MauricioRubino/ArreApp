@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { createReservation } from '../services/reservasService'
 import { notifyOwnerOfReservation } from '../services/notificationService'
-import { PERSONAS_MAX_ONLINE } from '../data/reservasData'
+import { PERSONAS_MAX_ONLINE, TURNOS } from '../data/reservasData'
 import { DEFAULT_COUNTRY, buildFullPhone } from '../data/countryCodes'
+import { nowInMontevideo, todayInMontevideo, minutesFromHHMM } from '../data/scheduleData'
 
 const INITIAL_FIELDS = {
   nombre: '',
@@ -15,12 +16,6 @@ const INITIAL_FIELDS = {
   comentario: '',
 }
 
-function todayISO() {
-  const now = new Date()
-  now.setMinutes(now.getMinutes() - now.getTimezoneOffset())
-  return now.toISOString().slice(0, 10)
-}
-
 function validate(fields) {
   const errors = {}
   if (!fields.nombre.trim()) errors.nombre = 'Ingresá tu nombre.'
@@ -28,7 +23,7 @@ function validate(fields) {
     errors.telefono = 'Ingresá un teléfono válido (te escribimos por acá).'
   }
   if (!fields.fecha) errors.fecha = 'Elegí una fecha.'
-  else if (fields.fecha < todayISO()) errors.fecha = 'La fecha no puede ser pasada.'
+  else if (fields.fecha < todayInMontevideo()) errors.fecha = 'La fecha no puede ser pasada.'
   if (!fields.hora) errors.hora = 'Elegí un horario.'
   const personas = Number(fields.personas)
   if (!personas || personas < 1) errors.personas = 'Indicá cuántas personas son.'
@@ -46,6 +41,17 @@ export function useReservaForm() {
     setFields((prev) => ({ ...prev, [name]: value }))
     setErrors((prev) => ({ ...prev, [name]: undefined }))
   }
+
+  // Si la reserva es para hoy, no tiene sentido ofrecer horarios que ya
+  // pasaron. Para otros días se ofrecen todos.
+  const turnosDisponibles = useMemo(() => {
+    if (fields.fecha !== todayInMontevideo()) return TURNOS
+    const { minutos } = nowInMontevideo()
+    return TURNOS.map((turno) => ({
+      ...turno,
+      horarios: turno.horarios.filter((hora) => minutesFromHHMM(hora) > minutos),
+    })).filter((turno) => turno.horarios.length > 0)
+  }, [fields.fecha])
 
   async function submit() {
     const validationErrors = validate(fields)
@@ -66,7 +72,11 @@ export function useReservaForm() {
 
       if (notification.status === 'rejected') {
         setStatus('error')
-        setErrorMessage('No pudimos procesar la reserva. Revisá los datos e intentá de nuevo.')
+        setErrorMessage(
+          notification.reason === 'en-pasado'
+            ? 'Ese horario ya pasó. Elegí uno más adelante.'
+            : 'No pudimos procesar la reserva. Revisá los datos e intentá de nuevo.'
+        )
         return
       }
 
@@ -98,7 +108,8 @@ export function useReservaForm() {
     reservation,
     submit,
     reset,
-    minDate: todayISO(),
+    minDate: todayInMontevideo(),
+    turnosDisponibles,
     requiresPhoneCall: Number(fields.personas) > PERSONAS_MAX_ONLINE,
   }
 }

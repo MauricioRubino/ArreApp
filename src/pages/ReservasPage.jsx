@@ -15,6 +15,7 @@ export default function ReservasPage() {
     submit,
     reset,
     minDate,
+    turnosDisponibles,
     requiresPhoneCall,
   } = useReservaForm()
 
@@ -46,6 +47,7 @@ export default function ReservasPage() {
           errorMessage={errorMessage}
           requiresPhoneCall={requiresPhoneCall}
           minDate={minDate}
+          turnosDisponibles={turnosDisponibles}
           onSubmit={submit}
         />
       )}

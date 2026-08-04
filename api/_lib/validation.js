@@ -4,6 +4,13 @@
 
 import { MENU_ITEMS } from '../../src/data/menuData.js'
 import { GUARNICIONES } from '../../src/data/guarnicionesData.js'
+import { isWithinDeliveryArea } from '../../src/data/locationData.js'
+import {
+  isOpenAt,
+  nowInMontevideo,
+  todayInMontevideo,
+  minutesFromHHMM,
+} from '../../src/data/scheduleData.js'
 import { listOutOfStock } from './stockStore.js'
 import { normalizePhone } from './phone.js'
 
@@ -40,6 +47,7 @@ export async function validateOrder(payload) {
     Number.isFinite(payload.location.lng)
       ? { lat: payload.location.lat, lng: payload.location.lng }
       : null
+  if (!location) errors.push('location')
 
   const rawItems = Array.isArray(payload?.items) ? payload.items : []
   if (rawItems.length < 1 || rawItems.length > 40) errors.push('items')
@@ -73,6 +81,9 @@ export async function validateOrder(payload) {
   }
 
   if (errors.length > 0) return { ok: false, errors }
+
+  if (!isOpenAt()) return { ok: false, cerrado: true }
+  if (!isWithinDeliveryArea(location)) return { ok: false, fueraDeZona: true }
 
   const outOfStockIds = await listOutOfStock()
   const sinStock = items.filter((i) => outOfStockIds.includes(i.menuItemId)).map((i) => i.name)
@@ -111,6 +122,15 @@ export function validateReservation(payload) {
   const comentario = cleanText(payload?.comentario, 300)
 
   if (errors.length > 0) return { ok: false, errors }
+
+  // No se puede reservar para un momento que ya pasó (ni una fecha
+  // anterior, ni un horario de hoy que ya quedó atrás).
+  const ahora = nowInMontevideo()
+  const hoy = todayInMontevideo()
+  if (fecha < hoy) return { ok: false, enPasado: true }
+  if (fecha === hoy && minutesFromHHMM(hora) <= ahora.minutos) {
+    return { ok: false, enPasado: true }
+  }
 
   return { ok: true, reservation: { nombre, telefono, fecha, hora, personas, zona, comentario } }
 }

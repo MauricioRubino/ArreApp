@@ -1,6 +1,7 @@
 import { Loader2 } from 'lucide-react'
 import PhoneInput from '../forms/PhoneInput'
-import { TURNOS, ZONAS, PERSONAS_MAX_ONLINE } from '../../data/reservasData'
+import { ZONAS, PERSONAS_MAX_ONLINE } from '../../data/reservasData'
+import { HORARIO_LABEL } from '../../data/scheduleData'
 
 const inputClass =
   'w-full rounded-lg border border-linea bg-crema-soft/40 px-3.5 py-2.5 text-sm text-tinta placeholder:text-tinta-dim/60 focus:outline-none focus:border-title transition-colors'
@@ -25,6 +26,7 @@ export default function ReservaForm({
   errorMessage,
   requiresPhoneCall,
   minDate,
+  turnosDisponibles,
   onSubmit,
 }) {
   const isSubmitting = status === 'submitting'
@@ -75,8 +77,10 @@ export default function ReservaForm({
             onChange={(e) => setField('hora', e.target.value)}
             className={inputClass}
           >
-            <option value="">Elegí un horario</option>
-            {TURNOS.map((turno) => (
+            <option value="">
+              {turnosDisponibles.length > 0 ? 'Elegí un horario' : 'Sin horarios para esta fecha'}
+            </option>
+            {turnosDisponibles.map((turno) => (
               <optgroup key={turno.id} label={turno.label}>
                 {turno.horarios.map((hora) => (
                   <option key={hora} value={hora}>
@@ -86,6 +90,11 @@ export default function ReservaForm({
               </optgroup>
             ))}
           </select>
+          {turnosDisponibles.length === 0 && (
+            <p className="text-xs text-tinta-dim mt-1">
+              Ya no quedan horarios para hoy. Elegí otra fecha — atendemos de {HORARIO_LABEL}.
+            </p>
+          )}
         </Field>
       </div>
 

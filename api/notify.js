@@ -139,6 +139,12 @@ export default async function handler(req, res) {
   if (!validation.ok) {
     if (validation.sinStock) {
       res.status(409).json({ error: 'sin-stock', items: validation.sinStock })
+    } else if (validation.cerrado) {
+      res.status(409).json({ error: 'cerrado' })
+    } else if (validation.fueraDeZona) {
+      res.status(409).json({ error: 'fuera-de-zona' })
+    } else if (validation.enPasado) {
+      res.status(409).json({ error: 'en-pasado' })
     } else {
       res.status(400).json({ error: 'invalido', details: validation.errors })
     }
@@ -146,9 +152,9 @@ export default async function handler(req, res) {
   }
 
   const data = type === 'order' ? validation.order : validation.reservation
-  const numero = await getNextNumber()
+  const { numero, fecha } = await getNextNumber()
 
-  await saveRecord(numero, {
+  await saveRecord(fecha, numero, {
     tipo: type,
     nombre: data.nombre,
     telefono: data.telefono,

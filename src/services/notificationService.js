@@ -28,8 +28,8 @@ async function notify(type, payload) {
       // Respuesta no-JSON (ej. 404 html del dev server): backend ausente.
     }
 
-    if (response.status === 409 && data?.error === 'sin-stock') {
-      return { status: 'rejected', reason: 'sin-stock', items: data.items ?? [] }
+    if (response.status === 409) {
+      return { status: 'rejected', reason: data?.error ?? 'invalido', items: data?.items ?? [] }
     }
     if (response.status === 400) {
       return { status: 'rejected', reason: 'invalido' }

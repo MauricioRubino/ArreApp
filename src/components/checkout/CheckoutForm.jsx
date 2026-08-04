@@ -1,8 +1,9 @@
 import { lazy, Suspense } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Clock, Loader2, MapPin } from 'lucide-react'
 import PhoneInput from '../forms/PhoneInput'
 import { formatPrice } from '../../utils/format'
 import { METODOS_PAGO } from '../../data/paymentData'
+import { DELIVERY_AREA_LABEL } from '../../data/locationData'
 
 // Leaflet pesa ~150 kB y sólo se usa acá: se carga al abrir el checkout,
 // no al entrar a la carta.
@@ -34,8 +35,13 @@ export default function CheckoutForm({
   items,
   totalPrice,
   onSubmit,
+  estaAbierto,
+  proximaApertura,
+  horarioLabel,
+  ubicacionEnZona,
 }) {
   const isSubmitting = status === 'submitting'
+  const bloqueado = !estaAbierto || !ubicacionEnZona
 
   return (
     <form
@@ -45,6 +51,16 @@ export default function CheckoutForm({
       }}
       className="max-w-xl mx-auto flex flex-col gap-5"
     >
+      {!estaAbierto && (
+        <div className="flex items-start gap-2 text-sm border border-title/30 bg-title/5 rounded-lg px-4 py-3">
+          <Clock className="w-4 h-4 text-title shrink-0 mt-0.5" strokeWidth={2} />
+          <p className="text-tinta">
+            Ahora estamos cerrados. Atendemos de <strong>{horarioLabel}</strong>; podés hacer tu
+            pedido {proximaApertura}.
+          </p>
+        </div>
+      )}
+
       <div className="border border-linea rounded-lg px-5 py-4 bg-crema-soft/40">
         <p className="text-xs uppercase tracking-wide text-tinta-dim mb-2">Tu pedido</p>
         <ul className="text-sm text-tinta flex flex-col gap-1 mb-3">
@@ -116,9 +132,17 @@ export default function CheckoutForm({
         >
           <LocationMap value={location} onChange={setLocation} />
         </Suspense>
-        <p className="text-xs text-tinta-dim mt-1.5">
-          Tocá el mapa o arrastrá el pin para marcar exactamente dónde entregamos tu pedido.
-        </p>
+        {ubicacionEnZona ? (
+          <p className="text-xs text-tinta-dim mt-1.5">
+            Tocá el mapa o arrastrá el pin para marcar exactamente dónde entregamos tu pedido.
+          </p>
+        ) : (
+          <p className="flex items-start gap-1.5 text-xs text-title mt-1.5">
+            <MapPin className="w-3.5 h-3.5 shrink-0 mt-px" strokeWidth={2} />
+            Por ahora sólo entregamos en {DELIVERY_AREA_LABEL}. Movés el pin dentro del círculo para
+            continuar.
+          </p>
+        )}
       </div>
 
       <Field label="Método de pago" error={errors.metodoPago}>
@@ -144,8 +168,8 @@ export default function CheckoutForm({
 
       <button
         type="submit"
-        disabled={isSubmitting}
-        className="flex items-center justify-center gap-2 bg-title hover:bg-title-soft disabled:opacity-60 text-crema font-medium tracking-wide rounded-lg px-6 py-3 mt-2 transition-colors"
+        disabled={isSubmitting || bloqueado}
+        className="flex items-center justify-center gap-2 bg-title hover:bg-title-soft disabled:opacity-40 disabled:cursor-not-allowed text-crema font-medium tracking-wide rounded-lg px-6 py-3 mt-2 transition-colors"
       >
         {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" strokeWidth={2.5} />}
         {isSubmitting ? 'Enviando pedido...' : 'Confirmar pedido'}

@@ -1,11 +1,16 @@
 import { useMemo } from 'react'
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Circle, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
 import markerIcon from 'leaflet/dist/images/marker-icon.png'
 import markerShadow from 'leaflet/dist/images/marker-shadow.png'
-import { DEFAULT_LOCATION, DEFAULT_ZOOM } from '../../data/locationData'
+import {
+  DEFAULT_LOCATION,
+  DEFAULT_ZOOM,
+  DELIVERY_RADIUS_METERS,
+  isWithinDeliveryArea,
+} from '../../data/locationData'
 
 const markerIconDefault = L.icon({
   iconUrl: markerIcon,
@@ -41,6 +46,7 @@ function LocationMarker({ position, onChange }) {
 
 export default function LocationMap({ value, onChange }) {
   const center = useMemo(() => value ?? DEFAULT_LOCATION, [value])
+  const enZona = isWithinDeliveryArea(center)
 
   return (
     <div className="rounded-lg overflow-hidden border border-linea">
@@ -53,6 +59,17 @@ export default function LocationMap({ value, onChange }) {
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        {/* Zona de entrega: el pin tiene que quedar adentro. */}
+        <Circle
+          center={DEFAULT_LOCATION}
+          radius={DELIVERY_RADIUS_METERS}
+          pathOptions={{
+            color: enZona ? '#1c8b7f' : '#a63a2c',
+            weight: 2,
+            fillColor: enZona ? '#1c8b7f' : '#a63a2c',
+            fillOpacity: 0.08,
+          }}
         />
         <LocationMarker position={center} onChange={onChange} />
       </MapContainer>

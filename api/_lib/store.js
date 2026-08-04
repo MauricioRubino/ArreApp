@@ -1,34 +1,61 @@
 // Guarda pedidos/reservas por número, para que el dueño pueda
 // referenciarlos por WhatsApp ("ok #3") y para poder avisarle al cliente
 // correcto cuando cambia el estado.
+//
+// La numeración se reinicia todos los días (#1, #2, #3…), así que tanto el
+// contador como los registros van namespaced por fecha de Montevideo.
 
 import { kv } from './kv.js'
+import { todayInMontevideo } from '../../src/data/scheduleData.js'
 
-const COUNTER_KEY = 'contador:pedidos'
 const PENDING_DETAILS_KEY = 'pendientes:detalles'
 const RECORD_TTL_SECONDS = 60 * 60 * 24 * 3 // 3 días
+const COUNTER_TTL_SECONDS = 60 * 60 * 36 // sobrevive al turno de cena y se cae solo
 
-function recordKey(numero) {
-  return `pedido:${numero}`
+function counterKey(fecha) {
+  return `contador:${fecha}`
+}
+
+function recordKey(fecha, numero) {
+  return `pedido:${fecha}:${numero}`
+}
+
+function yesterdayOf(fecha) {
+  const date = new Date(`${fecha}T12:00:00Z`)
+  date.setUTCDate(date.getUTCDate() - 1)
+  return date.toISOString().slice(0, 10)
 }
 
 export async function getNextNumber() {
-  return kv.incr(COUNTER_KEY)
+  const fecha = todayInMontevideo()
+  const key = counterKey(fecha)
+  const numero = await kv.incr(key)
+  if (numero === 1) await kv.expire(key, COUNTER_TTL_SECONDS)
+  return { numero, fecha }
 }
 
-export async function saveRecord(numero, record) {
-  await kv.set(recordKey(numero), record, { ex: RECORD_TTL_SECONDS })
+export async function saveRecord(fecha, numero, record) {
+  await kv.set(recordKey(fecha, numero), record, { ex: RECORD_TTL_SECONDS })
 }
 
+// El dueño puede responder "en camino #12" pasada la medianoche, cuando el
+// contador del día ya se reinició: si el número no existe hoy, se busca en
+// el día anterior antes de darlo por inexistente.
 export async function getRecord(numero) {
-  return kv.get(recordKey(numero))
+  const hoy = todayInMontevideo()
+  const deHoy = await kv.get(recordKey(hoy, numero))
+  if (deHoy) return { ...deHoy, fecha: hoy }
+
+  const ayer = yesterdayOf(hoy)
+  const deAyer = await kv.get(recordKey(ayer, numero))
+  return deAyer ? { ...deAyer, fecha: ayer } : null
 }
 
 export async function updateRecordEstado(numero, estado) {
   const record = await getRecord(numero)
   if (!record) return null
   const updated = { ...record, estado }
-  await saveRecord(numero, updated)
+  await saveRecord(record.fecha, numero, updated)
   return updated
 }
 
