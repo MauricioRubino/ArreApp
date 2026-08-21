@@ -1,9 +1,12 @@
-// Crea la base "Pedidos — Arrecife" en Notion, con cada propiedad ya del
-// tipo correcto y con las opciones de Estado y Pago cargadas.
+// Crea la base de pedidos en Notion, con cada propiedad ya del tipo
+// correcto y con las opciones de Estado y Pago cargadas.
+// El esquema vive en esquema.mjs.
 //
 // Se corre una sola vez:
 //
-//   node notion/crear-base.mjs <URL-o-ID-de-la-página-madre>
+//   node notion/crear-base.mjs <URL-o-ID-de-la-página-madre> [nombre]
+//
+// El nombre es opcional; por defecto "arrecifepedidos".
 //
 // La página madre es cualquier página de tu workspace donde quieras que
 // viva la base. Tiene que estar compartida con la integración (··· >
@@ -11,6 +14,8 @@
 //
 // El token sale de .env.local o de la variable de entorno NOTION_TOKEN.
 // Al terminar imprime el NOTION_DATABASE_ID listo para pegar en Vercel.
+
+import { PROPIEDADES, NOMBRE_POR_DEFECTO } from './esquema.mjs'
 
 const NOTION_VERSION = process.env.NOTION_VERSION || '2022-06-28'
 
@@ -35,56 +40,13 @@ function parsePageId(input) {
 }
 
 const parentPageId = parsePageId(process.argv[2] ?? process.env.NOTION_PARENT_PAGE_ID)
+const nombreBase = process.argv[3] || NOMBRE_POR_DEFECTO
 if (!parentPageId) {
   console.error('✗ Falta la página madre.\n')
   console.error('  Uso:  node notion/crear-base.mjs <URL-o-ID-de-la-página>\n')
   console.error('  Abrí en Notion la página donde querés la base, copiá la URL')
   console.error('  del navegador y pegala como argumento.')
   process.exit(1)
-}
-
-const richText = () => ({ rich_text: {} })
-
-const properties = {
-  // El título es lo que se ve en el tablero: número + nombre, para poder
-  // identificar un pedido de un vistazo sin abrir la tarjeta.
-  Pedido: { title: {} },
-  'Número': { number: { format: 'number' } },
-  Estado: {
-    select: {
-      options: [
-        { name: 'Nuevo', color: 'red' },
-        { name: 'Preparando', color: 'orange' },
-        { name: 'Listo', color: 'yellow' },
-        { name: 'En camino', color: 'blue' },
-        { name: 'Entregado', color: 'green' },
-        { name: 'Cancelado', color: 'gray' },
-      ],
-    },
-  },
-  Cliente: richText(),
-  'Teléfono': { phone_number: {} },
-  Recibido: { date: {} },
-  Detalle: richText(),
-  Platos: { number: { format: 'number' } },
-  // Notion no tiene formato de peso uruguayo; queda como número y podés
-  // cambiarlo a mano desde la UI si querés el símbolo.
-  Total: { number: { format: 'number' } },
-  Pago: {
-    select: {
-      options: [
-        { name: 'Efectivo', color: 'green' },
-        { name: 'Scotiabank 25%', color: 'red' },
-        { name: 'Scotiabank 15%', color: 'orange' },
-        { name: 'Otras Tarjetas', color: 'blue' },
-      ],
-    },
-  },
-  'Dirección': richText(),
-  Referencia: richText(),
-  'Ubicación': { url: {} },
-  // No la escribe la app: es para que el dueño anote lo que quiera.
-  Notas: richText(),
 }
 
 const response = await fetch('https://api.notion.com/v1/databases', {
@@ -96,9 +58,9 @@ const response = await fetch('https://api.notion.com/v1/databases', {
   },
   body: JSON.stringify({
     parent: { type: 'page_id', page_id: parentPageId },
-    title: [{ type: 'text', text: { content: 'Pedidos — Arrecife' } }],
+    title: [{ type: 'text', text: { content: nombreBase } }],
     is_inline: false,
-    properties,
+    properties: PROPIEDADES,
   }),
 })
 
