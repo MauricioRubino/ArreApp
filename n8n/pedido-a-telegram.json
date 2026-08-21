@@ -1,0 +1,127 @@
+{
+  "name": "Arrecife — Pedido nuevo a Telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "arrecife-pedidos",
+        "options": {}
+      },
+      "id": "a1000000-0000-4000-8000-000000000001",
+      "name": "Pedido nuevo",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "a1000000-0000-4000-8000-000000000001",
+      "notes": "La URL de produccion de este nodo es el N8N_WEBHOOK_URL que va en Vercel."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "secreto",
+              "leftValue": "={{ $json.headers['x-arrecife-secret'] }}",
+              "rightValue": "PEGA-ACA-TU-N8N-SECRET",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1000000-0000-4000-8000-000000000002",
+      "name": "Secreto valido",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "notes": "El webhook es una URL publica: sin este chequeo cualquiera le manda pedidos falsos al dueno."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Cuerpo del nodo Code \"Armar mensaje\" del workflow de n8n.\n//\n// Vive como archivo aparte para poder probarlo como JavaScript de verdad\n// en vez de escribirlo a ciegas adentro de un JSON. Si cambiás el texto,\n// regenerá el workflow con generar-workflow.mjs — o editalo directamente\n// en n8n, que para eso está.\n//\n// Va en texto plano a propósito, sin parse_mode: un nombre con & o con _\n// rompería el formato de Telegram justo en medio del servicio.\n\nconst cuerpo = $input.first().json.body;\nconst d = cuerpo.datos;\n\n// Las líneas vacías son separadores a propósito, así que no se filtran:\n// lo único opcional es el mapa, y ese caso se maneja aparte.\nconst lineas = [`🍽 PEDIDO #${cuerpo.numero}`, '', ...d.items.map((i) => i.linea), ''];\n\n// El bloque de descuento sólo aparece si el cliente eligió una promo.\nif (d.descuento > 0) {\n  lineas.push(`Subtotal: ${d.subtotalLabel}`, `${d.metodoPagoLabel}: ${d.descuentoLabel}`, '');\n}\n\nlineas.push(\n  `TOTAL: ${d.totalLabel}  ·  ${d.metodoPagoLabel}`,\n  '',\n  `Cliente: ${d.nombre}`,\n  `Tel: ${d.telefono}`,\n  `Dirección: ${d.direccion}`\n);\n\nif (d.mapsUrl) lineas.push(`Mapa: ${d.mapsUrl}`);\n\nlineas.push('', `Ver en Notion: ${cuerpo.notion.url}`);\n\nreturn [{ json: { mensaje: lineas.join('\\n'), numero: cuerpo.numero } }];\n"
+      },
+      "id": "a1000000-0000-4000-8000-000000000003",
+      "name": "Armar mensaje",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "PEGA-ACA-TU-CHAT-ID",
+        "text": "={{ $json.mensaje }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "a1000000-0000-4000-8000-000000000004",
+      "name": "Avisar al dueno",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        680,
+        -100
+      ],
+      "notes": "Elegi la credencial de Telegram al importar. El chatId es el del dueno."
+    }
+  ],
+  "connections": {
+    "Pedido nuevo": {
+      "main": [
+        [
+          {
+            "node": "Secreto valido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Secreto valido": {
+      "main": [
+        [
+          {
+            "node": "Armar mensaje",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Armar mensaje": {
+      "main": [
+        [
+          {
+            "node": "Avisar al dueno",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}
