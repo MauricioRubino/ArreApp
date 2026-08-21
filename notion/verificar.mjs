@@ -1,6 +1,7 @@
 // Prueba de punta a punta contra la base real de Notion.
 //
-//   node notion/verificar.mjs
+//   node notion/verificar.mjs            (archiva el pedido de prueba)
+//   node notion/verificar.mjs --dejar    (lo deja visible en la base)
 //
 // Manda un pedido de prueba por el mismo camino que usa la web
 // (validación, numeración, escritura en Notion), después lo lee de vuelta
@@ -49,7 +50,7 @@ const req = {
       telefono: '+59899123456',
       calle: 'Av. Solari 1234',
       referenciaHogar: 'pedido de prueba',
-      metodoPago: 'efectivo',
+      metodoPago: 'scotiabank-25',
       location: { lat: -34.6612, lng: -54.1489 },
       items: [
         { menuItemId: plato.id, quantity: 2, guarnicion: null },
@@ -115,6 +116,8 @@ const leer = {
   Recibido: p.Recibido?.date?.start,
   Detalle: p.Detalle?.rich_text?.[0]?.plain_text,
   Platos: p.Platos?.number,
+  Subtotal: p.Subtotal?.number,
+  Descuento: p.Descuento?.number,
   Total: p.Total?.number,
   Pago: p.Pago?.select?.name,
   'Dirección': p['Dirección']?.rich_text?.[0]?.plain_text,
@@ -134,7 +137,15 @@ if (vacias.length > 0) {
   console.log(`⚠ ${vacias.length} propiedad(es) sin valor: ${vacias.map(([k]) => k).join(', ')}`)
   console.log('  Suele ser que el nombre en Notion no coincide exactamente con el del código.')
 } else {
-  console.log('✓ Las 13 propiedades llegaron completas.')
+  console.log(`✓ Las ${Object.keys(leer).length} propiedades llegaron completas.`)
+}
+
+// Con --dejar el pedido queda en la base, para poder mirarlo en Notion.
+if (process.argv.includes('--dejar')) {
+  console.log(`
+✓ El pedido de prueba queda en la base: ${page.url}`)
+  console.log('  Borralo desde Notion cuando termines de mirarlo.')
+  process.exit(0)
 }
 
 // Limpieza: se archiva sólo la página que creó este script. En Notion

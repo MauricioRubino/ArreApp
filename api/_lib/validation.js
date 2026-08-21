@@ -11,9 +11,10 @@ import {
   todayInMontevideo,
   minutesFromHHMM,
 } from '../../src/data/scheduleData.js'
+import { METODOS_PAGO, calcularTotales } from '../../src/data/paymentData.js'
 import { normalizePhone } from './phone.js'
 
-const METODOS_PAGO = ['efectivo', 'scotiabank-25', 'scotiabank-15', 'otras-tarjetas']
+const METODOS_PAGO_IDS = METODOS_PAGO.map((metodo) => metodo.id)
 const ZONAS = ['sin-preferencia', 'interior', 'terraza']
 
 function cleanText(value, maxLength) {
@@ -37,7 +38,7 @@ export function validateOrder(payload) {
 
   const referenciaHogar = cleanText(payload?.referenciaHogar, 120)
 
-  const metodoPago = METODOS_PAGO.includes(payload?.metodoPago) ? payload.metodoPago : null
+  const metodoPago = METODOS_PAGO_IDS.includes(payload?.metodoPago) ? payload.metodoPago : null
   if (!metodoPago) errors.push('metodoPago')
 
   const location =
@@ -84,11 +85,26 @@ export function validateOrder(payload) {
   if (!isOpenAt()) return { ok: false, cerrado: true }
   if (!isWithinDeliveryArea(location)) return { ok: false, fueraDeZona: true }
 
-  const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
+  // El descuento del método de pago también se recalcula acá: si el
+  // navegador manda un total ya "descontado", se ignora igual que los
+  // precios.
+  const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
+  const { descuento, total } = calcularTotales(subtotal, metodoPago)
 
   return {
     ok: true,
-    order: { nombre, telefono, calle, referenciaHogar, metodoPago, location, items, total },
+    order: {
+      nombre,
+      telefono,
+      calle,
+      referenciaHogar,
+      metodoPago,
+      location,
+      items,
+      subtotal,
+      descuento,
+      total,
+    },
   }
 }
 

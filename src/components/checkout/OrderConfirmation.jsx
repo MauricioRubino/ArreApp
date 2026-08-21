@@ -31,7 +31,23 @@ export default function OrderConfirmation({ order }) {
               <dd className="text-tinta tabular-nums">{formatPrice(item.price * item.quantity)}</dd>
             </div>
           ))}
-          <div className="flex justify-between gap-3 border-t border-linea pt-2.5 font-medium text-title">
+          {order.descuento > 0 && (
+            <>
+              <div className="flex justify-between gap-3 border-t border-linea pt-2.5 text-tinta-dim">
+                <dt>Subtotal</dt>
+                <dd className="tabular-nums">{formatPrice(order.subtotal)}</dd>
+              </div>
+              <div className="flex justify-between gap-3 text-teal">
+                <dt>{metodoPagoLabel}</dt>
+                <dd className="tabular-nums">−{formatPrice(order.descuento)}</dd>
+              </div>
+            </>
+          )}
+          <div
+            className={`flex justify-between gap-3 font-medium text-title ${
+              order.descuento > 0 ? 'pt-1' : 'border-t border-linea pt-2.5'
+            }`}
+          >
             <dt>Total</dt>
             <dd className="tabular-nums">{formatPrice(order.total)}</dd>
           </div>

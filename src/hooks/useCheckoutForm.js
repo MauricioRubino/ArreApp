@@ -5,6 +5,7 @@ import { useCartStore, selectTotalPrice } from '../store/cartStore'
 import { DEFAULT_LOCATION, isWithinDeliveryArea, DELIVERY_AREA_LABEL } from '../data/locationData'
 import { DEFAULT_COUNTRY, buildFullPhone } from '../data/countryCodes'
 import { isOpenAt, nextOpeningLabel, HORARIO_LABEL } from '../data/scheduleData'
+import { calcularTotales } from '../data/paymentData'
 
 const INITIAL_FIELDS = {
   nombre: '',
@@ -60,6 +61,12 @@ export function useCheckoutForm() {
   const totalPrice = useCartStore(selectTotalPrice)
   const clearCart = useCartStore((state) => state.clearCart)
 
+  // Se recalcula en cada render para que el descuento se vea apenas el
+  // cliente cambia el método de pago. El backend hace la misma cuenta y
+  // es la que vale: esto es sólo para que no se entere del precio final
+  // recién en la pantalla de confirmación.
+  const totales = calcularTotales(totalPrice, fields.metodoPago)
+
   function setField(name, value) {
     setFields((prev) => ({ ...prev, [name]: value }))
     setErrors((prev) => ({ ...prev, [name]: undefined }))
@@ -79,7 +86,7 @@ export function useCheckoutForm() {
         telefono: buildFullPhone(fields.codigoPais, fields.telefono),
         location,
         items,
-        total: totalPrice,
+        ...totales,
       }
 
       const result = await createOrder(order)
@@ -116,6 +123,9 @@ export function useCheckoutForm() {
     submit,
     items,
     totalPrice,
+    subtotal: totales.subtotal,
+    descuento: totales.descuento,
+    total: totales.total,
     hasSubmitted: hasSubmittedRef.current,
     // Avisos inmediatos, sin esperar al envío. El backend los revalida
     // igual: esto es sólo para que el cliente no complete el formulario

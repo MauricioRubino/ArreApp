@@ -14,7 +14,9 @@ export default function CheckoutPage() {
     errorMessage,
     submit,
     items,
-    totalPrice,
+    subtotal,
+    descuento,
+    total,
     hasSubmitted,
     estaAbierto,
     proximaApertura,
@@ -52,7 +54,9 @@ export default function CheckoutPage() {
         status={status}
         errorMessage={errorMessage}
         items={items}
-        totalPrice={totalPrice}
+        subtotal={subtotal}
+        descuento={descuento}
+        total={total}
         onSubmit={submit}
         estaAbierto={estaAbierto}
         proximaApertura={proximaApertura}

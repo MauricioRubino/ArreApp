@@ -34,8 +34,11 @@ export const PROPIEDADES = {
   Recibido: { date: {} },
   Detalle: texto(),
   Platos: { number: { format: 'number' } },
-  // Notion no tiene formato de peso uruguayo; queda como número y se
-  // puede cambiar a mano desde la UI.
+  // Los tres números van separados para poder cuadrar la caja y saber
+  // cuánto se fue en promos bancarias en el mes. Notion no tiene formato
+  // de peso uruguayo; quedan como número y se puede cambiar desde la UI.
+  Subtotal: { number: { format: 'number' } },
+  Descuento: { number: { format: 'number' } },
   Total: { number: { format: 'number' } },
   Pago: {
     select: {

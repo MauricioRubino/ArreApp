@@ -79,6 +79,8 @@ function buildOrderProperties(numero, order, recibido) {
     Detalle: richText(detalle),
     // Unidades totales, para saber de un vistazo el tamaño del pedido.
     Platos: { number: order.items.reduce((sum, item) => sum + item.quantity, 0) },
+    Subtotal: { number: order.subtotal },
+    Descuento: { number: order.descuento },
     Total: { number: order.total },
     Pago: select(labelOf(METODOS_PAGO, order.metodoPago, 'Efectivo')),
     'Dirección': richText(order.calle),

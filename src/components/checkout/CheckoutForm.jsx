@@ -2,7 +2,7 @@ import { lazy, Suspense } from 'react'
 import { Clock, Loader2, MapPin } from 'lucide-react'
 import PhoneInput from '../forms/PhoneInput'
 import { formatPrice } from '../../utils/format'
-import { METODOS_PAGO } from '../../data/paymentData'
+import { METODOS_PAGO, calcularTotales, getMetodoPago } from '../../data/paymentData'
 import { DELIVERY_AREA_LABEL } from '../../data/locationData'
 
 // Leaflet pesa ~150 kB y sólo se usa acá: se carga al abrir el checkout,
@@ -33,7 +33,9 @@ export default function CheckoutForm({
   status,
   errorMessage,
   items,
-  totalPrice,
+  subtotal,
+  descuento,
+  total,
   onSubmit,
   estaAbierto,
   proximaApertura,
@@ -42,6 +44,7 @@ export default function CheckoutForm({
 }) {
   const isSubmitting = status === 'submitting'
   const bloqueado = !estaAbierto || !ubicacionEnZona
+  const metodoElegido = getMetodoPago(fields.metodoPago)
 
   return (
     <form
@@ -74,9 +77,23 @@ export default function CheckoutForm({
             </li>
           ))}
         </ul>
-        <div className="flex justify-between border-t border-linea pt-2 text-sm font-medium text-title">
-          <span>Total</span>
-          <span className="tabular-nums">{formatPrice(totalPrice)}</span>
+        <div className="border-t border-linea pt-2 text-sm flex flex-col gap-1.5">
+          {descuento > 0 && (
+            <>
+              <div className="flex justify-between text-tinta-dim">
+                <span>Subtotal</span>
+                <span className="tabular-nums">{formatPrice(subtotal)}</span>
+              </div>
+              <div className="flex justify-between text-teal">
+                <span>{metodoElegido.label}</span>
+                <span className="tabular-nums">−{formatPrice(descuento)}</span>
+              </div>
+            </>
+          )}
+          <div className="flex justify-between font-medium text-title">
+            <span>Total</span>
+            <span className="tabular-nums">{formatPrice(total)}</span>
+          </div>
         </div>
       </div>
 
@@ -152,11 +169,17 @@ export default function CheckoutForm({
           className={inputClass}
         >
           <option value="">Elija su método de pago</option>
-          {METODOS_PAGO.map((metodo) => (
-            <option key={metodo.id} value={metodo.id}>
-              {metodo.label}
-            </option>
-          ))}
+          {METODOS_PAGO.map((metodo) => {
+            // El ahorro va en la opción misma: así el cliente lo ve
+            // antes de elegir, no después.
+            const ahorro = calcularTotales(subtotal, metodo.id).descuento
+            return (
+              <option key={metodo.id} value={metodo.id}>
+                {metodo.label}
+                {ahorro > 0 && ` — ahorrás ${formatPrice(ahorro)}`}
+              </option>
+            )
+          })}
         </select>
       </Field>
 
