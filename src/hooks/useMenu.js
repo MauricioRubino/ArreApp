@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { fetchCategories, fetchMenuItems, fetchOutOfStockIds } from '../services/menuService'
+import { fetchCategories, fetchMenuItems } from '../services/menuService'
 
 export function useMenu() {
   const [categories, setCategories] = useState([])
@@ -15,16 +15,13 @@ export function useMenu() {
       setIsLoading(true)
       setError(null)
       try {
-        const [categoriesData, itemsData, outOfStockIds] = await Promise.all([
+        const [categoriesData, itemsData] = await Promise.all([
           fetchCategories(),
           fetchMenuItems(),
-          fetchOutOfStockIds(),
         ])
         if (!cancelled) {
           setCategories(categoriesData)
-          setItems(
-            itemsData.map((item) => ({ ...item, sinStock: outOfStockIds.includes(item.id) }))
-          )
+          setItems(itemsData)
         }
       } catch (err) {
         if (!cancelled) setError(err)

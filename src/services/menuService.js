@@ -25,16 +25,3 @@ export async function fetchMenuItemsByCategory(categoryId) {
   if (!categoryId || categoryId === 'todas') return MENU_ITEMS
   return MENU_ITEMS.filter((item) => item.categoryId === categoryId)
 }
-
-// Platos que el dueño marcó sin stock por WhatsApp (ver api/webhook.js).
-// Sin backend disponible, no hay nada marcado sin stock.
-export async function fetchOutOfStockIds() {
-  try {
-    const response = await fetch('/api/stock')
-    if (!response.ok) return []
-    const data = await response.json()
-    return data.outOfStockIds ?? []
-  } catch {
-    return []
-  }
-}

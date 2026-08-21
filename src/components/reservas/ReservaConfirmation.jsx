@@ -1,7 +1,5 @@
-import { CheckCircle2, MessageCircle, TriangleAlert } from 'lucide-react'
+import { CheckCircle2, Phone } from 'lucide-react'
 import { ZONAS } from '../../data/reservasData'
-import { RESTAURANT_WHATSAPP } from '../../data/contactData'
-import { buildReservationWhatsAppText, buildWaLink } from '../../utils/waLink'
 
 function formatFecha(iso) {
   const [year, month, day] = iso.split('-')
@@ -11,7 +9,6 @@ function formatFecha(iso) {
 
 export default function ReservaConfirmation({ reservation, onReset }) {
   const zonaLabel = ZONAS.find((z) => z.id === reservation.zona)?.label
-  const needsManualSend = reservation.notificationDelivered === false
 
   return (
     <div className="max-w-xl mx-auto text-center border border-linea rounded-lg px-6 sm:px-10 py-12 bg-crema-soft/60">
@@ -26,30 +23,9 @@ export default function ReservaConfirmation({ reservation, onReset }) {
       )}
       <h2 className="font-display text-2xl text-tinta tracking-wide mb-2">¡Reserva enviada!</h2>
       <p className="text-sm text-tinta-dim mb-8">
-        Hola {reservation.nombre}, anotamos tu solicitud. Te confirmamos la mesa por WhatsApp al{' '}
+        Hola {reservation.nombre}, anotamos tu solicitud. El restaurante te confirma la mesa al{' '}
         <span className="text-tinta font-medium">{reservation.telefono}</span>.
       </p>
-
-      {needsManualSend && (
-        <div className="text-left text-sm border border-title/30 bg-title/5 rounded-lg px-4 py-3 mb-8">
-          <p className="flex items-start gap-2 text-tinta mb-2">
-            <TriangleAlert className="w-4 h-4 text-title shrink-0 mt-0.5" strokeWidth={2} />
-            No pudimos avisarle automáticamente al restaurante.
-          </p>
-          {RESTAURANT_WHATSAPP ? (
-            <a
-              href={buildWaLink(RESTAURANT_WHATSAPP, buildReservationWhatsAppText(reservation))}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-block bg-title hover:bg-title-soft text-crema text-xs font-medium tracking-wide rounded-lg px-4 py-2 transition-colors"
-            >
-              Enviar la reserva por WhatsApp
-            </a>
-          ) : (
-            <p className="text-tinta-dim">Comunicate con el restaurante para confirmar que la hayan recibido.</p>
-          )}
-        </div>
-      )}
 
       <dl className="text-left text-sm border-t border-linea pt-6 flex flex-col gap-2.5 mb-8">
         <div className="flex justify-between gap-3">
@@ -73,8 +49,8 @@ export default function ReservaConfirmation({ reservation, onReset }) {
       </dl>
 
       <p className="flex items-center justify-center gap-1.5 text-xs text-tinta-dim mb-8">
-        <MessageCircle className="w-3.5 h-3.5" strokeWidth={2} />
-        Te avisamos apenas la mesa esté lista.
+        <Phone className="w-3.5 h-3.5" strokeWidth={2} />
+        Te llamamos apenas la mesa esté confirmada.
       </p>
 
       <button

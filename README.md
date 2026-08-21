@@ -2,9 +2,12 @@
 
 App web del restaurante Arrecife (La Paloma, Rocha — desde 1986). Pensada
 principalmente para usarse desde el celular. Permite ver la carta, armar un
-pedido de delivery y reservar mesa; los pedidos y reservas le llegan al dueño
-por WhatsApp, y él responde por el mismo WhatsApp para avisarle al cliente o
-dar de baja platos sin stock.
+pedido de delivery y reservar mesa. Cada pedido se valida en el backend, se
+guarda en una base de Notion y dispara una automatización en n8n, que es la
+que se encarga de avisarle al dueño.
+
+**La app no manda ni recibe mensajes.** Toda la comunicación con el dueño y
+con el cliente vive en n8n, del otro lado del webhook.
 
 ## Cómo correrlo
 
@@ -19,9 +22,10 @@ npm run dev
 Otros comandos: `npm run build` (compila a `dist/`), `npm run lint` (oxlint),
 `npm run preview` (sirve el build).
 
-> En desarrollo con `vite dev` **no corren las funciones de `api/`**: los
-> avisos por WhatsApp fallan en silencio y la app muestra el respaldo manual.
-> Para probar el backend localmente hace falta `vercel dev`.
+> En desarrollo con `vite dev` **no corren las funciones de `api/`**: al
+> confirmar un pedido la app muestra "no pudimos guardar tu pedido", que es
+> el comportamiento correcto — sin backend, el pedido no existe. Para probar
+> el flujo completo hace falta `vercel dev`.
 
 ## Cómo está organizado
 
@@ -30,41 +34,117 @@ src/
   pages/        Una por ruta (Home, Carta, Delivery, Checkout, Reservas…)
   components/   UI por dominio: menu/, cart/, checkout/, reservas/, forms/
   hooks/        Estado y lógica de formularios (useMenu, useCheckoutForm…)
-  services/     Única puerta de salida a datos/red (menuService, notification…)
+  services/     Única puerta de salida a datos/red (apiClient, menuService…)
   store/        Carrito (Zustand, persistido en localStorage)
   data/         Carta, guarniciones, países, métodos de pago, ubicación
 api/            Funciones serverless de Vercel
-  notify.js     Recibe pedido/reserva, valida, numera y avisa al dueño
-  webhook.js    Recibe las respuestas del dueño desde WhatsApp
-  stock.js      Expone los platos sin stock al frontend
-  _lib/         Lógica compartida (kv, whatsapp, validación, teléfonos…)
+  orders.js     Recibe pedido/reserva, valida, numera, guarda y dispara n8n
+  _lib/         notion, n8n, validación, contador, rate limit, teléfonos
+notion/         Script que crea la base en Notion + guía del esquema
 ```
 
-Toda la app habla con los datos a través de `services/` — hoy resuelven contra
-`data/` local, y el día que haya backend propio sólo cambia lo de adentro de
-esas funciones.
+Toda la app habla con los datos a través de `services/` — la carta resuelve
+contra `data/` local y los pedidos salen por `apiClient`.
 
-**Precios y stock se validan siempre en el backend** (`api/_lib/validation.js`):
+## El flujo de un pedido
+
+```
+Navegador → POST /api/orders
+   1. Rate limit por IP + tope global diario         (Redis)
+   2. Validación server-side                         (_lib/validation.js)
+   3. Número correlativo del día                     (Redis)
+   4. Crear la página en Notion  ← fuente de verdad  (_lib/notion.js)
+   5. Disparar el webhook de n8n                     (_lib/n8n.js)
+```
+
+Los pasos 4 y 5 no son intercambiables:
+
+- **Si Notion falla, el pedido se rechaza** con 502 y el cliente ve un error
+  pidiéndole que reintente. Es preferible a confirmarle un pedido que nadie
+  va a ver, porque ya no queda ningún canal de respaldo.
+- **Si n8n falla, el pedido igual se confirma.** Ya quedó guardado en Notion;
+  lo único que se pierde es la automatización, que se puede reprocesar
+  mirando la base.
+
+**Los precios se validan siempre en el backend** (`api/_lib/validation.js`):
 lo que manda el navegador no se considera confiable, cada línea del pedido se
-reconstruye contra la carta real.
+reconstruye contra la carta real. Con Notion del otro lado esto importa más
+que antes, no menos: es lo único entre el navegador y la base.
 
-## Comandos que el dueño usa por WhatsApp
+También se valida server-side el horario de atención y que la ubicación del
+pin caiga dentro de la zona de entrega.
 
-Cada pedido/reserva recibe un número correlativo (`#1`, `#2`, …) que se muestra
-en la confirmación del cliente y en el aviso al dueño.
+## Lo que recibe n8n
 
-| El dueño escribe | Efecto |
-| --- | --- |
-| `ok #3` | Avisa al cliente que su pedido se está preparando |
-| `listo #3` | Avisa que el pedido está listo |
-| `en camino #3` | Avisa que el pedido salió |
-| `confirmada #5` | Confirma la reserva |
-| `cancelada #5` | Cancela la reserva |
-| `no hay rabas` | Marca el plato sin stock (no se puede pedir) |
-| `sí hay rabas` | Repone el stock |
+`POST` al `N8N_WEBHOOK_URL` con el header `X-Arrecife-Secret` (el workflow
+tiene que verificarlo: el webhook es una URL pública).
 
-Si el nombre del plato coincide con varios, el sistema responde con una lista
-numerada y el dueño contesta sólo el número.
+El payload va **masticado a propósito**: además de los datos crudos lleva las
+etiquetas ya resueltas, los links armados y los subtotales calculados, para
+que el workflow sea un nodo que arma texto y no una cadena de nodos
+traduciendo IDs a nombres.
+
+```json
+{
+  "tipo": "order",
+  "numero": 12,
+  "fecha": "2026-08-21",
+  "recibido": "2026-08-21T20:00:00-03:00",
+  "notion": {
+    "pageId": "page-abc-123",
+    "url": "https://notion.so/page-abc-123"
+  },
+  "datos": {
+    "nombre": "Juan Pérez",
+    "telefono": "+59899123456",
+    "calle": "Av. Solari 1234",
+    "referenciaHogar": "portón verde",
+    "direccion": "Av. Solari 1234 (portón verde)",
+    "location": { "lat": -34.6612, "lng": -54.1489 },
+    "mapsUrl": "https://maps.google.com/?q=-34.6612,-54.1489",
+    "metodoPago": "scotiabank-25",
+    "metodoPagoLabel": "Scotiabank 25%",
+    "items": [
+      {
+        "menuItemId": "ent-01",
+        "name": "Rabas de calamar",
+        "price": 650,
+        "quantity": 2,
+        "guarnicion": null,
+        "subtotal": 1300,
+        "linea": "2x Rabas de calamar - $1.300"
+      }
+    ],
+    "platos": 5,
+    "total": 3490,
+    "totalLabel": "$3.490"
+  }
+}
+```
+
+Cada campo `*Label` es el texto listo para mostrar; `linea` es la línea del
+plato ya redactada. Con eso, el mensaje al dueño sale de una expresión:
+
+```
+🍽️ Pedido #{{ $json.numero }}
+
+{{ $json.datos.items.map(i => i.linea).join('
+') }}
+
+Total: {{ $json.datos.totalLabel }} ({{ $json.datos.metodoPagoLabel }})
+{{ $json.datos.nombre }} — {{ $json.datos.telefono }}
+{{ $json.datos.direccion }}
+{{ $json.datos.mapsUrl }}
+
+Ver en Notion: {{ $json.notion.url }}
+```
+
+Con `"tipo": "reservation"`, `datos` trae `nombre`, `telefono`, `fecha`,
+`fechaLabel` ("Sábado 15 de enero"), `hora`, `fechaHora` (ISO con offset),
+`personas`, `zona`, `zonaLabel` y `comentario`.
+
+Los datos ya vienen validados y con los precios recalculados contra la carta:
+n8n puede confiar en ellos sin volver a chequear nada.
 
 ## Deploy en Vercel
 
@@ -73,35 +153,17 @@ numerada y el dueño contesta sólo el número.
    (`/carta`, `/reservas`…) no den 404 al entrar directo, sin tocar `/api/*`.
 2. **Storage → Redis (Upstash)** desde el Marketplace de Vercel y conectarlo al
    proyecto: carga solo `UPSTASH_REDIS_REST_URL` y `UPSTASH_REDIS_REST_TOKEN`.
-   Sin esto los números de pedido y el stock no persisten entre invocaciones.
-3. Cargar el resto de las variables de entorno (ver `.env.example`).
+   Sin esto la numeración de pedidos y el límite anti-spam no persisten entre
+   invocaciones de la función.
+3. Crear la base de Notion con `node notion/crear-base.mjs <URL-de-la-página>`
+   — los detalles y el esquema están en [`notion/README.md`](notion/README.md).
+4. Cargar el resto de las variables de entorno (ver `.env.example`).
 
-## Configurar WhatsApp (Meta Cloud API)
+## n8n self-hosted
 
-1. Crear una app en [developers.facebook.com](https://developers.facebook.com/apps)
-   (tipo Business) y agregarle el producto **WhatsApp**. Ahí salen
-   `WHATSAPP_PHONE_NUMBER_ID` y un token de prueba de 24 h.
-2. Para producción, generar un token permanente en Business Settings → System
-   Users, con permiso `whatsapp_business_messaging` → `WHATSAPP_ACCESS_TOKEN`.
-3. Aprobar una plantilla en WhatsApp Manager → Message Templates. Categoría
-   *Utility*, idioma español, con **un solo parámetro** y de **una sola línea**
-   (Meta no permite saltos de línea en los parámetros):
+El webhook tiene que ser **alcanzable desde Vercel**: HTTPS público con
+certificado válido. En un VPS alcanza con un dominio y Caddy/nginx adelante;
+si corre en una máquina de casa, lo más práctico es un Cloudflare Tunnel.
 
-   ```
-   Aviso de Arrecife: {{1}}
-   ```
-
-4. Configurar el webhook en WhatsApp → Configuration:
-   - Callback URL: `https://TU-PROYECTO.vercel.app/api/webhook?token=EL_TOKEN`
-     (el token va en la query, igual al `WHATSAPP_WEBHOOK_VERIFY_TOKEN`)
-   - Verify token: el mismo valor
-   - Suscribirse al campo `messages`
-5. Poner el número público del restaurante en `src/data/contactData.js`, para
-   que el cliente tenga el botón de respaldo por `wa.me` si el aviso automático
-   no se pudo entregar.
-
-### Sin credenciales configuradas
-
-La app funciona igual: los mensajes quedan en los logs de la función y el
-cliente ve un aviso de que el pedido no se pudo enviar automáticamente, con un
-botón para mandarlo él mismo por WhatsApp. Nada de esto rompe el flujo.
+Si el server está caído no se pierde ningún pedido —quedan todos en Notion—
+pero el dueño no se entera hasta que mire la base.

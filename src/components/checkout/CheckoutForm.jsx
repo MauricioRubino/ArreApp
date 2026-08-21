@@ -91,7 +91,7 @@ export default function CheckoutForm({
           />
         </Field>
 
-        <Field label="Teléfono (WhatsApp)" error={errors.telefono}>
+        <Field label="Teléfono" error={errors.telefono}>
           <PhoneInput
             country={fields.codigoPais}
             onCountryChange={(value) => setField('codigoPais', value)}

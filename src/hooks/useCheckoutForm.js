@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createOrder } from '../services/checkoutService'
-import { notifyOwnerOfOrder } from '../services/notificationService'
 import { useCartStore, selectTotalPrice } from '../store/cartStore'
 import { DEFAULT_LOCATION, isWithinDeliveryArea, DELIVERY_AREA_LABEL } from '../data/locationData'
 import { DEFAULT_COUNTRY, buildFullPhone } from '../data/countryCodes'
@@ -18,13 +17,19 @@ const INITIAL_FIELDS = {
 
 const DEFAULT_REJECTION = 'No pudimos procesar el pedido. Revisá los datos e intentá de nuevo.'
 
+// Sin ningún canal de respaldo, un fallo de red significa que el pedido no
+// quedó en ningún lado. Hay que decirlo claro para que el cliente
+// reintente en vez de quedarse esperando comida que nadie va a cocinar.
+const FAILURE_MESSAGE =
+  'No pudimos guardar tu pedido y todavía no le llegó al restaurante. Revisá tu conexión y probá de nuevo.'
+
 const REJECTION_MESSAGES = {
-  'sin-stock': (n) =>
-    `Estos platos se quedaron sin stock: ${n.items.join(', ')}. Quitalos del carrito para continuar.`,
   cerrado: () =>
     `El restaurante está cerrado en este momento. Atendemos de ${HORARIO_LABEL}: volvé ${nextOpeningLabel()}.`,
   'fuera-de-zona': () =>
     `Por ahora sólo entregamos en ${DELIVERY_AREA_LABEL}. Movés el pin del mapa dentro de la zona marcada para continuar.`,
+  'rate-limited': () =>
+    'Recibimos varios pedidos desde este dispositivo. Esperá unos minutos y volvé a intentar.',
 }
 
 function validate(fields) {
@@ -68,36 +73,35 @@ export function useCheckoutForm() {
     setStatus('submitting')
     setErrorMessage(null)
     try {
-      const result = await createOrder({
+      const order = {
         ...fields,
-        // El número exacto para WhatsApp: prefijo del país elegido + local.
+        // Prefijo del país elegido + número local, en formato internacional.
         telefono: buildFullPhone(fields.codigoPais, fields.telefono),
         location,
         items,
         total: totalPrice,
-      })
+      }
 
-      const notification = await notifyOwnerOfOrder(result)
+      const result = await createOrder(order)
 
-      if (notification.status === 'rejected') {
+      if (result.status !== 'created') {
         setStatus('error')
-        setErrorMessage(REJECTION_MESSAGES[notification.reason]?.(notification) ?? DEFAULT_REJECTION)
+        setErrorMessage(
+          result.status === 'rejected'
+            ? (REJECTION_MESSAGES[result.reason]?.() ?? DEFAULT_REJECTION)
+            : FAILURE_MESSAGE
+        )
         return
       }
 
       hasSubmittedRef.current = true
       navigate('/delivery/confirmacion', {
-        state: {
-          order: {
-            ...result,
-            numero: notification.numero ?? null,
-            notificationDelivered: notification.status === 'sent' && notification.delivered,
-          },
-        },
+        state: { order: { ...order, numero: result.numero } },
       })
       clearCart()
     } catch {
       setStatus('error')
+      setErrorMessage(FAILURE_MESSAGE)
     }
   }
 

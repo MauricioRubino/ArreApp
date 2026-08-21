@@ -24,7 +24,7 @@ export const COUNTRY_CODES = [
 
 export const DEFAULT_COUNTRY = 'UY'
 
-// Combina país + número local en el formato exacto que usa WhatsApp
+// Combina país + número local en formato internacional E.164
 // (+59899123456). Tolera cómo escribe la gente de verdad: espacios,
 // guiones, el 0 de discado nacional ("099...") e incluso el prefijo de
 // país repetido ("598 99 123 456" con Uruguay ya seleccionado).

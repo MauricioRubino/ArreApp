@@ -50,9 +50,12 @@ export default function DeliveryPage() {
           </span>
         </div>
 
+        {/* mx-4: el botón queda deliberadamente más angosto que la lista
+            de arriba, para que no se lea como una barra pegada al borde
+            de la pantalla en el celular. */}
         <Link
           to="/delivery/checkout"
-          className="block text-center bg-title hover:bg-title-soft text-crema font-medium tracking-wide rounded-lg px-6 py-3 mt-6 transition-colors"
+          className="block text-center bg-title hover:bg-title-soft text-crema font-medium tracking-wide rounded-lg px-6 py-3.5 mt-6 mx-4 transition-colors"
         >
           Realizar pedido
         </Link>

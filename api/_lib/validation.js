@@ -1,6 +1,6 @@
 // Validación server-side de pedidos y reservas: el navegador no es
 // confiable, así que los precios y el total se recalculan siempre contra
-// la carta real (menuData) y el stock se verifica al momento de confirmar.
+// la carta real (menuData) antes de guardarlos en Notion.
 
 import { MENU_ITEMS } from '../../src/data/menuData.js'
 import { GUARNICIONES } from '../../src/data/guarnicionesData.js'
@@ -11,7 +11,6 @@ import {
   todayInMontevideo,
   minutesFromHHMM,
 } from '../../src/data/scheduleData.js'
-import { listOutOfStock } from './stockStore.js'
 import { normalizePhone } from './phone.js'
 
 const METODOS_PAGO = ['efectivo', 'scotiabank-25', 'scotiabank-15', 'otras-tarjetas']
@@ -24,14 +23,14 @@ function cleanText(value, maxLength) {
     .slice(0, maxLength)
 }
 
-export async function validateOrder(payload) {
+export function validateOrder(payload) {
   const errors = []
 
   const nombre = cleanText(payload?.nombre, 80)
   if (!nombre) errors.push('nombre')
 
   const telefono = normalizePhone(payload?.telefono)
-  if (telefono.length < 8) errors.push('telefono')
+  if (telefono.length < 9) errors.push('telefono')
 
   const calle = cleanText(payload?.calle, 120)
   if (!calle) errors.push('calle')
@@ -85,10 +84,6 @@ export async function validateOrder(payload) {
   if (!isOpenAt()) return { ok: false, cerrado: true }
   if (!isWithinDeliveryArea(location)) return { ok: false, fueraDeZona: true }
 
-  const outOfStockIds = await listOutOfStock()
-  const sinStock = items.filter((i) => outOfStockIds.includes(i.menuItemId)).map((i) => i.name)
-  if (sinStock.length > 0) return { ok: false, sinStock }
-
   const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
 
   return {
@@ -104,7 +99,7 @@ export function validateReservation(payload) {
   if (!nombre) errors.push('nombre')
 
   const telefono = normalizePhone(payload?.telefono)
-  if (telefono.length < 8) errors.push('telefono')
+  if (telefono.length < 9) errors.push('telefono')
 
   const fecha = /^\d{4}-\d{2}-\d{2}$/.test(payload?.fecha ?? '') ? payload.fecha : null
   if (!fecha) errors.push('fecha')

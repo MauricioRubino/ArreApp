@@ -32,7 +32,7 @@ export default function ReservasPage() {
       <div className="text-center mb-10">
         <h1 className="font-display text-4xl sm:text-5xl text-tinta tracking-wide">Reservá tu mesa</h1>
         <p className="text-tinta-dim mt-3 max-w-lg mx-auto">
-          Contanos cuándo venís y te confirmamos por WhatsApp apenas la mesa esté lista.
+          Contanos cuándo venís y te confirmamos por teléfono apenas la mesa esté lista.
         </p>
       </div>
 

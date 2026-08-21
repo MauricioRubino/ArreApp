@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react'
 import { createReservation } from '../services/reservasService'
-import { notifyOwnerOfReservation } from '../services/notificationService'
 import { PERSONAS_MAX_ONLINE, TURNOS } from '../data/reservasData'
 import { DEFAULT_COUNTRY, buildFullPhone } from '../data/countryCodes'
 import { nowInMontevideo, todayInMontevideo, minutesFromHHMM } from '../data/scheduleData'
@@ -14,6 +13,16 @@ const INITIAL_FIELDS = {
   personas: '2',
   zona: 'sin-preferencia',
   comentario: '',
+}
+
+const DEFAULT_REJECTION = 'No pudimos procesar la reserva. Revisá los datos e intentá de nuevo.'
+
+const FAILURE_MESSAGE =
+  'No pudimos guardar tu reserva y todavía no le llegó al restaurante. Revisá tu conexión y probá de nuevo.'
+
+const REJECTION_MESSAGES = {
+  'en-pasado': 'Ese horario ya pasó. Elegí uno más adelante.',
+  'rate-limited': 'Recibimos varias reservas desde este dispositivo. Esperá unos minutos y volvé a intentar.',
 }
 
 function validate(fields) {
@@ -61,33 +70,30 @@ export function useReservaForm() {
     setStatus('submitting')
     setErrorMessage(null)
     try {
-      const result = await createReservation({
+      const nueva = {
         ...fields,
-        // El número exacto para WhatsApp: prefijo del país elegido + local.
+        // Prefijo del país elegido + número local, en formato internacional.
         telefono: buildFullPhone(fields.codigoPais, fields.telefono),
         personas: Number(fields.personas),
-      })
+      }
 
-      const notification = await notifyOwnerOfReservation(result)
+      const result = await createReservation(nueva)
 
-      if (notification.status === 'rejected') {
+      if (result.status !== 'created') {
         setStatus('error')
         setErrorMessage(
-          notification.reason === 'en-pasado'
-            ? 'Ese horario ya pasó. Elegí uno más adelante.'
-            : 'No pudimos procesar la reserva. Revisá los datos e intentá de nuevo.'
+          result.status === 'rejected'
+            ? (REJECTION_MESSAGES[result.reason] ?? DEFAULT_REJECTION)
+            : FAILURE_MESSAGE
         )
         return
       }
 
-      setReservation({
-        ...result,
-        numero: notification.numero ?? null,
-        notificationDelivered: notification.status === 'sent' && notification.delivered,
-      })
+      setReservation({ ...nueva, numero: result.numero })
       setStatus('success')
     } catch {
       setStatus('error')
+      setErrorMessage(FAILURE_MESSAGE)
     }
   }
 

@@ -1,17 +1,8 @@
-// Capa de servicio: hoy simula la creación del pedido con latencia de red;
-// el día que haya backend, sólo cambia lo de adentro de esta función.
+// Capa de servicio del pedido: lo manda al backend, que lo valida, lo
+// guarda en Notion y dispara la automatización de n8n.
 
-const SIMULATED_LATENCY_MS = 700
+import { submitToApi } from './apiClient'
 
-function delay(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-export async function createOrder(payload) {
-  await delay(SIMULATED_LATENCY_MS)
-  return {
-    id: `ped-${Date.now()}`,
-    estado: 'pendiente-confirmacion',
-    ...payload,
-  }
+export function createOrder(payload) {
+  return submitToApi('order', payload)
 }

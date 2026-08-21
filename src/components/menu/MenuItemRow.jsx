@@ -3,41 +3,42 @@ import { formatPrice } from '../../utils/format'
 
 export default function MenuItemRow({ item, onAdd }) {
   const isVeg = item.tags.includes('vegetariano') || item.tags.includes('vegano')
-  const sinStock = Boolean(item.sinStock)
 
   return (
-    <div className={`py-3 border-b border-linea/60 last:border-b-0 group ${sinStock ? 'opacity-50' : ''}`}>
-      <div className="flex items-baseline gap-2">
-        <h4 className="font-display text-tinta text-base sm:text-lg tracking-wide shrink-0">
-          {item.name}
-        </h4>
-        {isVeg && <Leaf className="w-3 h-3 text-salvia shrink-0 mb-0.5" strokeWidth={2.5} />}
-        <span className="flex-1 border-b border-dotted border-tinta-dim/40 translate-y-[-3px]" />
-        <span className="font-body font-semibold text-title tabular-nums shrink-0">
-          {formatPrice(item.price)}
-        </span>
-      </div>
-
-      <div className="flex items-end justify-between gap-3 mt-0.5">
-        <div className="pr-4">
-          {item.description && (
-            <p className="text-sm text-tinta-dim leading-snug">{item.description}</p>
-          )}
-          {item.requiresGuarnicion && !sinStock && (
-            <p className="text-xs text-salvia italic">Guarnición a elección incluida.</p>
-          )}
-          {sinStock && <p className="text-xs text-title uppercase tracking-wide font-medium">Sin stock</p>}
+    <div className="flex items-start gap-3 py-4 border-b border-linea/60 last:border-b-0 group">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-baseline gap-2 flex-wrap">
+          <h4 className="font-display text-tinta text-[17px] sm:text-lg tracking-wide">
+            {item.name}
+          </h4>
+          {isVeg && <Leaf className="w-3.5 h-3.5 text-salvia shrink-0" strokeWidth={2.5} />}
+          {/* Puntitos de carta impresa: se comen el espacio sobrante y
+              desaparecen solos cuando el nombre es largo y envuelve. */}
+          <span className="flex-1 min-w-4 border-b border-dotted border-tinta-dim/40 translate-y-[-4px]" />
+          <span className="font-body font-semibold text-title tabular-nums shrink-0">
+            {formatPrice(item.price)}
+          </span>
         </div>
-        {!sinStock && (
-          <button
-            onClick={() => onAdd?.(item)}
-            className="opacity-0 group-hover:opacity-100 focus:opacity-100 sm:opacity-60 flex items-center gap-1 text-[11px] uppercase tracking-wide text-tinta-dim hover:text-title border border-linea hover:border-title rounded-full px-2.5 py-1 shrink-0 transition"
-          >
-            <Plus className="w-3 h-3" strokeWidth={2.5} />
-            Agregar
-          </button>
+
+        {item.description && (
+          <p className="text-[13px] sm:text-sm text-tinta-dim leading-snug mt-1 pr-2">
+            {item.description}
+          </p>
+        )}
+        {item.requiresGuarnicion && (
+          <p className="text-xs text-salvia italic mt-0.5">Guarnición a elección incluida.</p>
         )}
       </div>
+
+      {/* Siempre visible: en el celular no hay hover, y esta app se usa
+          sobre todo desde el celular. 44px es el mínimo táctil cómodo. */}
+      <button
+        onClick={() => onAdd?.(item)}
+        aria-label={`Agregar ${item.name}`}
+        className="shrink-0 w-11 h-11 rounded-full flex items-center justify-center border border-linea text-title bg-crema-soft/40 hover:bg-title hover:border-title hover:text-crema active:scale-90 transition-all duration-150"
+      >
+        <Plus className="w-4.5 h-4.5" strokeWidth={2.5} />
+      </button>
     </div>
   )
 }

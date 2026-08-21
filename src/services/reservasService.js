@@ -1,17 +1,8 @@
-// Capa de servicio: hoy simula la creación de la reserva con latencia de
-// red; el día que haya backend, sólo cambia lo de adentro de esta función.
+// Capa de servicio de la reserva: va al mismo backend que los pedidos y
+// termina en la misma base de Notion, con Tipo = Reserva.
 
-const SIMULATED_LATENCY_MS = 700
+import { submitToApi } from './apiClient'
 
-function delay(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-export async function createReservation(payload) {
-  await delay(SIMULATED_LATENCY_MS)
-  return {
-    id: `res-${Date.now()}`,
-    estado: 'pendiente-confirmacion',
-    ...payload,
-  }
+export function createReservation(payload) {
+  return submitToApi('reservation', payload)
 }

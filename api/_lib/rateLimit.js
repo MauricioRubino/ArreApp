@@ -1,6 +1,7 @@
-// Límite de solicitudes para /api/notify: cada aviso cuesta un mensaje de
-// WhatsApp, así que un script malicioso podría generar gasto real además
-// de spamear al dueño. Límite por IP + tope global diario.
+// Límite de solicitudes para /api/orders: es un endpoint público que
+// escribe en la base de Notion y dispara una automatización, así que sin
+// esto un script podría llenarle la base al dueño. Límite por IP + tope
+// global diario.
 //
 // Con el fallback en memoria (sin Upstash) el límite es por instancia de
 // función, o sea aproximado — con Upstash conectado es exacto.

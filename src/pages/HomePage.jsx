@@ -18,7 +18,7 @@ const OPTIONS = [
     to: '/reservas',
     icon: CalendarCheck,
     title: 'Hacé una Reserva',
-    description: 'Reservá tu mesa y te avisamos por WhatsApp.',
+    description: 'Reservá tu mesa y te confirmamos por teléfono.',
   },
 ]
 
