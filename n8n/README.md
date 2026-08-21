@@ -17,13 +17,35 @@ correcto se descarta en silencio.
 2. **El dueño tiene que escribirle al bot al menos una vez** (un `/start`
    alcanza). Un bot no puede iniciar conversación: si nunca le escribieron,
    el `sendMessage` falla con *chat not found*.
-3. Para averiguar el `chatId`, abrí en el navegador:
+3. Para averiguar el `chatId`, poné el token en `.env.local` como
+   `TELEGRAM_BOT_TOKEN` y corré:
 
-   ```
-   https://api.telegram.org/bot<TU-TOKEN>/getUpdates
+   ```bash
+   node n8n/telegram-chat-id.mjs
    ```
 
-   Buscá `"chat":{"id":123456789` — ese número es el `chatId`.
+   Valida el token, detecta si hay un webhook comiéndose los mensajes y
+   lista los chats con su id. Ese token es sólo para este helper: la app no
+   manda mensajes, así que no hace falta cargarlo en Vercel.
+
+   El camino manual es abrir `https://api.telegram.org/bot<TOKEN>/getUpdates`
+   y buscar `"chat":{"id":123456789`, pero suele venir vacío — ver abajo.
+
+### Si getUpdates viene vacío
+
+Devuelve `{"ok":true,"result":[]}` por tres razones distintas:
+
+1. **Nadie le escribió al bot todavía.** Es la más común: mandale `/start`
+   desde la cuenta del dueño y volvé a probar.
+2. **Los updates ya se consumieron.** Telegram los va descartando a medida
+   que los leés, y también expiran a las 24 h. Mandá otro mensaje al bot.
+3. **El bot tiene un webhook configurado.** Telegram le entrega los mensajes
+   ahí y `getUpdates` queda vacío para siempre. El script lo detecta y te
+   avisa.
+
+Atajo que evita todo esto: escribile a **@userinfobot** desde la cuenta del
+dueño. Te responde con el id de esa cuenta, que en un chat privado **es** el
+`chatId`.
 
 ## 2. Importar el workflow
 
