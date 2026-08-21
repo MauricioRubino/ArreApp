@@ -22,10 +22,18 @@ npm run dev
 Otros comandos: `npm run build` (compila a `dist/`), `npm run lint` (oxlint),
 `npm run preview` (sirve el build).
 
-> En desarrollo con `vite dev` **no corren las funciones de `api/`**: al
-> confirmar un pedido la app muestra "no pudimos guardar tu pedido", que es
-> el comportamiento correcto — sin backend, el pedido no existe. Para probar
-> el flujo completo hace falta `vercel dev`.
+> `npm run dev` **también sirve las funciones de `api/`**, así que se puede
+> probar el flujo completo (incluida la escritura en Notion) sin `vercel dev`.
+> Lo hace `vite-api-plugin.js`, que las monta en el dev server y les pasa las
+> variables de `.env.local`. Si `NOTION_TOKEN` no está cargado, al confirmar
+> un pedido la app muestra "no pudimos guardar tu pedido" — que es el
+> comportamiento correcto: sin backend que responda, el pedido no existe.
+
+> **Si los pedidos fallan en local con un error de certificado**
+> (`UNABLE_TO_VERIFY_LEAF_SIGNATURE`), es un antivirus o proxy interceptando
+> HTTPS. Por eso el script `dev` arranca Node con `--use-system-ca`: así usa
+> el almacén de certificados del sistema, donde esos programas registran su
+> CA raíz.
 
 ## Cómo está organizado
 
@@ -40,7 +48,8 @@ src/
 api/            Funciones serverless de Vercel
   orders.js     Recibe pedido/reserva, valida, numera, guarda y dispara n8n
   _lib/         notion, n8n, validación, contador, rate limit, teléfonos
-notion/         Script que crea la base en Notion + guía del esquema
+notion/         Scripts de la base en Notion + guía del esquema
+vite-api-plugin.js  Monta api/ en el dev server de Vite
 ```
 
 Toda la app habla con los datos a través de `services/` — la carta resuelve
