@@ -17,7 +17,7 @@ const d = cuerpo.datos;
 let ia;
 try {
   ia = JSON.parse($('Claude - Analizar').first().json.content[0].text);
-} catch (e) {
+} catch {
   ia = {
     requiere_revision_humana: true,
     motivo_revision: 'No se pudo analizar la reserva automaticamente',
