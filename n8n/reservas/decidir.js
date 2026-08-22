@@ -32,8 +32,16 @@ try {
   };
 }
 
-const turnos = $('Notion - Turno de la fecha').first().json.results || [];
-const confirmadas = $('Notion - Reservas confirmadas').first().json.results || [];
+// Igual que en Preparar analisis: n8n a veces entrega { results: [...] } en
+// un item y a veces un item por pagina. Se aceptan las dos formas.
+const paginasDe = (nodo) => {
+  const items = $(nodo).all();
+  if (items.length === 1 && Array.isArray(items[0].json.results)) return items[0].json.results;
+  return items.map((i) => i.json).filter((j) => j && j.properties);
+};
+
+const turnos = paginasDe('Notion - Turno de la fecha');
+const confirmadas = paginasDe('Notion - Reservas confirmadas');
 
 const capacidad = turnos[0]?.properties?.Capacidad_Total?.number ?? null;
 const ocupacion = confirmadas.reduce((suma, p) => suma + (p.properties?.Personas?.number || 0), 0);

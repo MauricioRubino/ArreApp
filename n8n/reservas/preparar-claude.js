@@ -15,7 +15,17 @@
 // Ojo: la title de Politicas_Arrecife se llama "Nombre", no "Tema". Leer
 // "Tema" devuelve undefined y las politicas llegan como "(sin tema)".
 
-const todas = $input.first().json.results || [];
+// n8n entrega la respuesta HTTP de dos formas segun el caso: un item con
+// { results: [...] } adentro, o un item por cada pagina ya desarmado.
+// Asumir una sola dejaba el array vacio, y Claude analizaba la reserva sin
+// ninguna politica: decia "no hay politicas cargadas" y bajaba la
+// confianza por no poder verificar nada.
+const items = $input.all();
+const todas =
+  items.length === 1 && Array.isArray(items[0].json.results)
+    ? items[0].json.results
+    : items.map((i) => i.json).filter((j) => j && j.properties);
+
 const paginas = todas.filter((p) => p.properties?.Activo?.checkbox === true);
 const d = $('Reserva nueva').first().json.body.datos;
 
