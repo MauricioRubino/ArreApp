@@ -62,7 +62,17 @@ const duplicada = confirmadas.some((p) => {
   return String(otro).replace(/\D/g, '') === telefono;
 });
 
+// Cuantas politicas vio realmente el analisis. Si son cero, Claude
+// clasifico a ciegas: eso es una anomalia del sistema, no algo de la
+// reserva, y tiene que quedar registrado en vez de disfrazarse de
+// "confianza baja".
+const politicasConsultadas = $('Preparar analisis').first().json.politicas ?? 0;
+const formaEntrada = $('Preparar analisis').first().json.forma_entrada ?? 'desconocida';
+
 const motivos = [];
+if (politicasConsultadas === 0) {
+  motivos.push(`ATENCION: el analisis corrio sin politicas cargadas (forma recibida: ${formaEntrada})`);
+}
 if (ia.requiere_revision_humana) motivos.push(ia.motivo_revision || 'La IA pidio revision');
 if (ia.viola_politica) motivos.push(`Politica: ${ia.politica_relacionada || 'sin especificar'}`);
 if (d.personas > 10) motivos.push(`Grupo grande (${d.personas} personas)`);
@@ -99,6 +109,7 @@ return [
       capacidad,
       ocupacion,
       hay_lugar: hayLugar,
+      politicas_consultadas: politicasConsultadas,
     },
   },
 ];

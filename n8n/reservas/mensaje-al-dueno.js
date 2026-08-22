@@ -26,6 +26,7 @@ if (r.capacidad !== null) {
 
 if (r.requiere_revision) {
   lineas.push('', `Motivo: ${r.motivo_revision}`);
+  lineas.push(`(analizado contra ${r.politicas_consultadas} politicas)`);
   lineas.push(
     '',
     'Para aprobarla o rechazarla, cambia el Estado de la reserva en Notion',
