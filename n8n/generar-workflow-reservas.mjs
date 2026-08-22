@@ -1,0 +1,421 @@
+// Genera reservas-arrecife.json a partir de los .js de n8n/reservas/.
+//
+//   node n8n/generar-workflow-reservas.mjs
+//
+// Los nodos Code viven como archivos JavaScript de verdad para poder
+// ejecutarlos contra un payload real antes de importar nada.
+//
+// Las operaciones contra Notion van por HTTP Request y no por el nodo
+// Notion: asi el cuerpo de cada request es exactamente el que documenta la
+// API, sin depender de como el nodo mapea "Propiedad|tipo" a valores. La
+// credencial sigue siendo la misma (notionApi).
+
+import fs from 'node:fs'
+import path from 'node:path'
+
+const dir = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'))
+const code = (archivo) => fs.readFileSync(path.join(dir, 'reservas', archivo), 'utf8')
+
+const BASES = {
+  politicas: '3c119da0dec980be8594c3080b55c1d6',
+  turnos: '3c119da0dec980748fbad1f52292f811',
+  reservas: '3c119da0dec98087b386ed1a5e21a39e',
+}
+
+const NOTION_VERSION = '2022-06-28'
+
+let x = 0
+const pos = () => [(x += 220) - 220, 0]
+
+function notionHttp(name, url, { method = 'POST', body = null, notes } = {}) {
+  return {
+    parameters: {
+      method,
+      url,
+      authentication: 'predefinedCredentialType',
+      nodeCredentialType: 'notionApi',
+      sendHeaders: true,
+      headerParameters: { parameters: [{ name: 'Notion-Version', value: NOTION_VERSION }] },
+      ...(body ? { sendBody: true, specifyBody: 'json', jsonBody: body } : {}),
+      options: {},
+    },
+    name,
+    type: 'n8n-nodes-base.httpRequest',
+    typeVersion: 4.2,
+    position: pos(),
+    ...(notes ? { notes } : {}),
+  }
+}
+
+function codeNode(name, archivo, notes) {
+  return {
+    parameters: { jsCode: code(archivo) },
+    name,
+    type: 'n8n-nodes-base.code',
+    typeVersion: 2,
+    position: pos(),
+    ...(notes ? { notes } : {}),
+  }
+}
+
+const cond = (id, left, right, type = 'string', operation = 'equals') => ({
+  id,
+  leftValue: left,
+  rightValue: right,
+  operator: { type, operation },
+})
+
+const opciones = { caseSensitive: true, leftValue: '', typeValidation: 'strict', version: 2 }
+
+function ifNode(name, condiciones, notes) {
+  return {
+    parameters: {
+      conditions: { options: opciones, conditions: condiciones, combinator: 'and' },
+      options: {},
+    },
+    name,
+    type: 'n8n-nodes-base.if',
+    typeVersion: 2,
+    position: pos(),
+    ...(notes ? { notes } : {}),
+  }
+}
+
+// La reserva del webhook, para las consultas que filtran por su fecha.
+const FECHA_PEDIDA = "$('Reserva nueva').first().json.body.datos.fecha"
+
+const FILTRO_TURNO =
+  '={{ JSON.stringify({ filter: { property: "Fecha", date: { equals: ' +
+  FECHA_PEDIDA +
+  ' } }, page_size: 1 }) }}'
+
+const FILTRO_CONFIRMADAS =
+  '={{ JSON.stringify({ filter: { and: [ { property: "Fecha", date: { equals: ' +
+  FECHA_PEDIDA +
+  ' } }, { property: "Estado", select: { equals: "Confirmada" } } ] }, page_size: 100 }) }}'
+
+// El cuerpo del POST que crea la pagina. Todos los nombres salen del
+// esquema real de la base (ver notion/reservas-esquema.mjs).
+const CREAR_RESERVA = `={{ JSON.stringify({
+  parent: { database_id: '${BASES.reservas}' },
+  properties: {
+    Nombre_Cliente: { title: [{ text: { content: $json.nombre } }] },
+    Numero: { number: $json.numero },
+    Estado: { select: { name: $json.estado } },
+    Canal_Origen: { select: { name: 'Web' } },
+    Telefono: { rich_text: [{ text: { content: $json.telefono } }] },
+    Email: { email: $json.email || null },
+    Fecha: { date: { start: $json.fechaHora } },
+    Hora: { rich_text: [{ text: { content: $json.hora } }] },
+    Personas: { number: $json.personas },
+    Zona: { select: { name: $json.zonaLabel } },
+    Observaciones: { rich_text: [{ text: { content: $json.comentario || '' } }] },
+    Confianza_IA: { number: $json.confianza },
+    Requiere_Revision: { checkbox: $json.requiere_revision },
+    Motivo_Revision: { rich_text: [{ text: { content: $json.motivo_revision || '' } }] },
+    Politica_Relacionada: { rich_text: [{ text: { content: $json.politica_relacionada || '' } }] }
+  }
+}) }}`
+
+const MAIL_CONFIRMA =
+  '=Hola {{ $json.nombre }},\n\nTu reserva quedo confirmada:\n\n' +
+  '{{ $json.fechaLabel }} a las {{ $json.hora }}\n' +
+  '{{ $json.personas }} personas - {{ $json.zonaLabel }}\n\n' +
+  'Si necesitas cambiar algo, respondenos este mail o llamanos.\n\nTe esperamos.\nArrecife'
+
+const MAIL_RECHAZO =
+  '=Hola {{ $json.nombre }},\n\nNo pudimos confirmar tu reserva para el ' +
+  '{{ $json.fechaLabel }} a las {{ $json.hora }} ({{ $json.personas }} personas).\n\n' +
+  'Escribinos o llamanos y buscamos otra alternativa.\n\nArrecife'
+
+const TELEGRAM_VENCIDA =
+  '=Reserva #{{ $json.numero }} sin respuesta hace mas de 4 horas, quedo marcada como Vencida.\n\n' +
+  '{{ $json.nombre }} - {{ $json.telefono }}\n' +
+  '{{ $json.fechaLabel }} a las {{ $json.hora }} - {{ $json.personas }} personas\n\n' +
+  'Hay que contactar al cliente a mano.\n\n{{ $json.reserva_url }}'
+
+const nodes = [
+  {
+    parameters: { httpMethod: 'POST', path: 'arrecife-reservas', options: {} },
+    name: 'Reserva nueva',
+    type: 'n8n-nodes-base.webhook',
+    typeVersion: 2,
+    position: pos(),
+    webhookId: 'b2000000-0000-4000-8000-000000000001',
+    notes: 'La URL de produccion es el N8N_RESERVAS_WEBHOOK_URL que va en Vercel.',
+  },
+
+  ifNode(
+    'Secreto valido',
+    [cond('secreto', "={{ $json.headers['x-arrecife-secret'] }}", 'PEGA-ACA-TU-N8N-SECRET')],
+    'El webhook es publico: sin este chequeo cualquiera carga reservas falsas.'
+  ),
+
+  notionHttp(
+    'Notion - Politicas activas',
+    `https://api.notion.com/v1/databases/${BASES.politicas}/query`,
+    {
+      body: JSON.stringify({
+        filter: { property: 'Activo', checkbox: { equals: true } },
+        page_size: 100,
+      }),
+    }
+  ),
+
+  codeNode(
+    'Preparar analisis',
+    'preparar-claude.js',
+    'Arma el contexto RAG y el cuerpo completo de la llamada a Claude.'
+  ),
+
+  {
+    parameters: {
+      method: 'POST',
+      url: 'https://api.anthropic.com/v1/messages',
+      authentication: 'genericCredentialType',
+      genericAuthType: 'httpHeaderAuth',
+      sendHeaders: true,
+      headerParameters: {
+        parameters: [
+          { name: 'anthropic-version', value: '2023-06-01' },
+          { name: 'content-type', value: 'application/json' },
+        ],
+      },
+      sendBody: true,
+      specifyBody: 'json',
+      jsonBody: '={{ JSON.stringify($json.peticion) }}',
+      options: {},
+    },
+    name: 'Claude - Analizar',
+    type: 'n8n-nodes-base.httpRequest',
+    typeVersion: 4.2,
+    position: pos(),
+    onError: 'continueRegularOutput',
+    notes: 'Credencial Header Auth con x-api-key. Si falla, Decidir manda la reserva a revision humana.',
+  },
+
+  notionHttp('Notion - Turno de la fecha', `https://api.notion.com/v1/databases/${BASES.turnos}/query`, {
+    body: FILTRO_TURNO,
+  }),
+
+  notionHttp(
+    'Notion - Reservas confirmadas',
+    `https://api.notion.com/v1/databases/${BASES.reservas}/query`,
+    {
+      body: FILTRO_CONFIRMADAS,
+      notes: 'Sirve para dos cosas: calcular la ocupacion del dia y detectar duplicados.',
+    }
+  ),
+
+  codeNode('Decidir', 'decidir.js', 'Combina reserva + IA + ocupacion y elige la ruta.'),
+
+  ifNode('Es duplicada', [cond('dup', '={{ $json.duplicada }}', true, 'boolean')]),
+
+  {
+    parameters: {},
+    name: 'Duplicada descartada',
+    type: 'n8n-nodes-base.noOp',
+    typeVersion: 1,
+    position: pos(),
+    notes: 'Mismo telefono y misma fecha con reserva ya confirmada.',
+  },
+
+  notionHttp('Notion - Crear reserva', 'https://api.notion.com/v1/pages', { body: CREAR_RESERVA }),
+
+  codeNode('Mensaje al dueno', 'mensaje-duenio.js'),
+
+  {
+    parameters: {
+      chatId: 'PEGA-ACA-TU-CHAT-ID',
+      text: '={{ $json.mensaje }}',
+      additionalFields: { appendAttribution: false },
+    },
+    name: 'Telegram - Avisar al dueno',
+    type: 'n8n-nodes-base.telegram',
+    typeVersion: 1.2,
+    position: pos(),
+  },
+
+  ifNode('Requiere aprobacion', [cond('rev', '={{ $json.requiere_revision }}', true, 'boolean')]),
+
+  ifNode(
+    'Tiene email',
+    [cond('mail', '={{ $json.email }}', '', 'string', 'notEmpty')],
+    'Sin email la confirmacion queda por telefono; la reserva no se bloquea.'
+  ),
+
+  {
+    parameters: {
+      sendTo: '={{ $json.email }}',
+      subject: '=Tu reserva en Arrecife esta confirmada',
+      message: MAIL_CONFIRMA,
+      options: {},
+    },
+    name: 'Gmail - Confirmar al cliente',
+    type: 'n8n-nodes-base.gmail',
+    typeVersion: 2.1,
+    position: pos(),
+    onError: 'continueRegularOutput',
+  },
+
+  {
+    parameters: { amount: 5, unit: 'minutes' },
+    name: 'Esperar 5 min',
+    type: 'n8n-nodes-base.wait',
+    typeVersion: 1.1,
+    position: pos(),
+    webhookId: 'b2000000-0000-4000-8000-000000000002',
+  },
+
+  notionHttp(
+    'Notion - Releer reserva',
+    "=https://api.notion.com/v1/pages/{{ $('Mensaje al dueno').first().json.reserva_id }}",
+    { method: 'GET' }
+  ),
+
+  codeNode('Evaluar aprobacion', 'evaluar-aprobacion.js'),
+
+  ifNode('Sigue esperando', [
+    cond('esperando', '={{ $json.estado_actual }}', 'Esperando_Aprobacion'),
+    cond('novencida', '={{ $json.vencida }}', false, 'boolean'),
+  ]),
+
+  {
+    parameters: {
+      rules: {
+        values: [
+          {
+            conditions: {
+              options: opciones,
+              conditions: [cond('ok', '={{ $json.estado_actual }}', 'Confirmada')],
+              combinator: 'and',
+            },
+          },
+          {
+            conditions: {
+              options: opciones,
+              conditions: [cond('no', '={{ $json.estado_actual }}', 'Rechazada')],
+              combinator: 'and',
+            },
+          },
+        ],
+      },
+      options: { fallbackOutput: 'extra' },
+    },
+    name: 'Resultado',
+    type: 'n8n-nodes-base.switch',
+    typeVersion: 3,
+    position: pos(),
+    notes: 'Salida 0 Confirmada, salida 1 Rechazada, salida 2 (fallback) vencida.',
+  },
+
+  {
+    parameters: {
+      sendTo: '={{ $json.email }}',
+      subject: '=Tu reserva en Arrecife no pudo confirmarse',
+      message: MAIL_RECHAZO,
+      options: {},
+    },
+    name: 'Gmail - Avisar rechazo',
+    type: 'n8n-nodes-base.gmail',
+    typeVersion: 2.1,
+    position: pos(),
+    onError: 'continueRegularOutput',
+  },
+
+  notionHttp('Notion - Marcar vencida', '=https://api.notion.com/v1/pages/{{ $json.reserva_id }}', {
+    method: 'PATCH',
+    body: JSON.stringify({ properties: { Estado: { select: { name: 'Vencida' } } } }),
+  }),
+
+  {
+    parameters: {
+      chatId: 'PEGA-ACA-TU-CHAT-ID',
+      text: TELEGRAM_VENCIDA,
+      additionalFields: { appendAttribution: false },
+    },
+    name: 'Telegram - Escalar vencida',
+    type: 'n8n-nodes-base.telegram',
+    typeVersion: 1.2,
+    position: pos(),
+  },
+]
+
+// null = salida sin cablear a proposito (rama que se descarta).
+const salida = (nodo, ...destinos) => ({
+  [nodo]: {
+    main: destinos.map((d) =>
+      d === null ? [] : [].concat(d).map((n) => ({ node: n, type: 'main', index: 0 }))
+    ),
+  },
+})
+
+const connections = {
+  ...salida('Reserva nueva', 'Secreto valido'),
+  ...salida('Secreto valido', 'Notion - Politicas activas', null),
+  ...salida('Notion - Politicas activas', 'Preparar analisis'),
+  ...salida('Preparar analisis', 'Claude - Analizar'),
+  ...salida('Claude - Analizar', 'Notion - Turno de la fecha'),
+  ...salida('Notion - Turno de la fecha', 'Notion - Reservas confirmadas'),
+  ...salida('Notion - Reservas confirmadas', 'Decidir'),
+  ...salida('Decidir', 'Es duplicada'),
+  ...salida('Es duplicada', 'Duplicada descartada', 'Notion - Crear reserva'),
+  ...salida('Notion - Crear reserva', 'Mensaje al dueno'),
+  ...salida('Mensaje al dueno', 'Telegram - Avisar al dueno'),
+  ...salida('Telegram - Avisar al dueno', 'Requiere aprobacion'),
+  ...salida('Requiere aprobacion', 'Esperar 5 min', 'Tiene email'),
+  ...salida('Tiene email', 'Gmail - Confirmar al cliente', null),
+  ...salida('Esperar 5 min', 'Notion - Releer reserva'),
+  ...salida('Notion - Releer reserva', 'Evaluar aprobacion'),
+  ...salida('Evaluar aprobacion', 'Sigue esperando'),
+  ...salida('Sigue esperando', 'Esperar 5 min', 'Resultado'),
+  ...salida('Resultado', 'Tiene email', 'Gmail - Avisar rechazo', 'Notion - Marcar vencida'),
+  ...salida('Notion - Marcar vencida', 'Telegram - Escalar vencida'),
+}
+
+const workflow = {
+  name: 'Arrecife - Reserva nueva (webhook + HITL en Notion)',
+  nodes: nodes.map((n, i) => ({
+    ...n,
+    id: `b2000000-0000-4000-8000-${String(i + 100).padStart(12, '0')}`,
+  })),
+  connections,
+  settings: { executionOrder: 'v1' },
+  pinData: {},
+}
+
+// Chequeo de integridad. El bug mas caro del workflow anterior eran nodos
+// que nadie conectaba: la rama HITL entera colgaba de una salida sin
+// cablear. Aca eso se detecta al generar, no en produccion.
+const nombres = new Set(workflow.nodes.map((n) => n.name))
+const alcanzados = new Set(['Reserva nueva'])
+for (const conn of Object.values(connections)) {
+  for (const rama of conn.main) for (const destino of rama) alcanzados.add(destino.node)
+}
+
+const huerfanos = [...nombres].filter((n) => !alcanzados.has(n))
+if (huerfanos.length > 0) {
+  console.error('✗ Nodos que nadie conecta:', huerfanos.join(', '))
+  process.exit(1)
+}
+for (const origen of Object.keys(connections)) {
+  if (!nombres.has(origen)) {
+    console.error(`✗ Hay una conexion que sale de "${origen}", que no existe`)
+    process.exit(1)
+  }
+}
+for (const conn of Object.values(connections)) {
+  for (const rama of conn.main) {
+    for (const destino of rama) {
+      if (!nombres.has(destino.node)) {
+        console.error(`✗ Hay una conexion hacia "${destino.node}", que no existe`)
+        process.exit(1)
+      }
+    }
+  }
+}
+
+const salidaPath = path.join(dir, 'reservas-arrecife.json')
+fs.writeFileSync(salidaPath, JSON.stringify(workflow, null, 2) + '\n')
+console.log('✓ generado', path.relative(process.cwd(), salidaPath))
+console.log(`  ${workflow.nodes.length} nodos, todos alcanzables desde el webhook`)

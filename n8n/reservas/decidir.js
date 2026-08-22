@@ -1,0 +1,84 @@
+// Nodo Code "Decidir".
+//
+// Junta las cuatro fuentes y decide la ruta. Cada una se referencia por
+// nombre de nodo a proposito: el $json que llega aca es el de Claude, no
+// el de la reserva.
+//
+// La ocupacion NO sale de un campo Ocupacion en Turnos: se calcula
+// sumando las personas de las reservas ya confirmadas de esa fecha. Un
+// contador guardado se desincroniza en cuanto alguien cancela o carga una
+// reserva a mano.
+
+const cuerpo = $('Reserva nueva').first().json.body;
+const d = cuerpo.datos;
+
+// Con structured outputs la respuesta ya viene validada contra el esquema,
+// pero si la llamada fallo el nodo puede traer otra cosa.
+let ia;
+try {
+  ia = JSON.parse($('Claude - Analizar').first().json.content[0].text);
+} catch (e) {
+  ia = {
+    requiere_revision_humana: true,
+    motivo_revision: 'No se pudo analizar la reserva automaticamente',
+    confianza: 0,
+    viola_politica: false,
+    politica_relacionada: null,
+  };
+}
+
+const turnos = $('Notion - Turno de la fecha').first().json.results || [];
+const confirmadas = $('Notion - Reservas confirmadas').first().json.results || [];
+
+const capacidad = turnos[0]?.properties?.Capacidad_Total?.number ?? null;
+const ocupacion = confirmadas.reduce((suma, p) => suma + (p.properties?.Personas?.number || 0), 0);
+// Sin turno cargado para esa fecha no se bloquea: se asume que hay lugar y
+// que el encargado lo revisara si hace falta.
+const hayLugar = capacidad === null ? true : ocupacion + d.personas <= capacidad;
+
+// Mismo telefono, misma fecha y ya confirmada: es la misma reserva mandada
+// dos veces, no una nueva.
+const telefono = String(d.telefono || '').replace(/\D/g, '');
+const duplicada = confirmadas.some((p) => {
+  const otro = p.properties?.Telefono?.rich_text?.[0]?.plain_text || '';
+  return String(otro).replace(/\D/g, '') === telefono;
+});
+
+const motivos = [];
+if (ia.requiere_revision_humana) motivos.push(ia.motivo_revision || 'La IA pidio revision');
+if (ia.viola_politica) motivos.push(`Politica: ${ia.politica_relacionada || 'sin especificar'}`);
+if (d.personas > 10) motivos.push(`Grupo grande (${d.personas} personas)`);
+if ((ia.confianza ?? 0) < 0.7) motivos.push(`Confianza baja (${ia.confianza})`);
+if (!hayLugar) motivos.push(`Sin lugar: ${ocupacion} + ${d.personas} supera ${capacidad}`);
+
+const requiereRevision = motivos.length > 0;
+
+return [
+  {
+    json: {
+      numero: cuerpo.numero,
+      recibido: cuerpo.recibido,
+      nombre: d.nombre,
+      telefono: d.telefono,
+      email: d.email,
+      fecha: d.fecha,
+      fechaLabel: d.fechaLabel,
+      hora: d.hora,
+      fechaHora: d.fechaHora,
+      personas: d.personas,
+      zonaLabel: d.zonaLabel,
+      comentario: d.comentario,
+
+      duplicada,
+      requiere_revision: requiereRevision,
+      estado: requiereRevision ? 'Esperando_Aprobacion' : 'Confirmada',
+      motivo_revision: motivos.join(' · ') || null,
+      confianza: ia.confianza ?? 0,
+      politica_relacionada: ia.viola_politica ? ia.politica_relacionada : null,
+
+      capacidad,
+      ocupacion,
+      hay_lugar: hayLugar,
+    },
+  },
+];

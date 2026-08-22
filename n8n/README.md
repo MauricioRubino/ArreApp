@@ -1,4 +1,8 @@
-# Workflow de n8n — Pedido nuevo a Telegram
+# Workflows de n8n
+
+Hay dos: este, de pedidos, y el de [reservas](RESERVAS.md).
+
+# Pedido nuevo a Telegram
 
 Cuando entra un pedido, la app lo guarda en Notion y después dispara este
 workflow, que le avisa al dueño por Telegram.

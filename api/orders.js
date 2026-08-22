@@ -13,12 +13,17 @@
 //      último y a propósito no puede tumbar el pedido: si el server de
 //      n8n está caído, el pedido ya quedó guardado en Notion.
 //
+// LAS RESERVAS VAN POR OTRO CAMINO: se validan y numeran igual, pero la
+// escritura en Notion la hace el workflow de n8n, porque el Estado de la
+// reserva depende del análisis de Claude y del chequeo de disponibilidad
+// contra los turnos. Acá sólo se entregan.
+//
 // La app no manda ni recibe mensajes: todo eso vive ahora en n8n.
 
 import { validateOrder, validateReservation } from './_lib/validation.js'
 import { getNextNumber } from './_lib/counter.js'
-import { createNotionPage } from './_lib/notion.js'
-import { notifyN8n } from './_lib/n8n.js'
+import { createOrderPage } from './_lib/notion.js'
+import { notifyN8n, enviarReservaAN8n } from './_lib/n8n.js'
 import { checkNotifyRateLimit, getClientIp } from './_lib/rateLimit.js'
 
 export default async function handler(req, res) {
@@ -62,13 +67,23 @@ export default async function handler(req, res) {
   // que un hueco no rompe nada.
   const { numero, fecha } = await getNextNumber()
 
-  const saved = await createNotionPage(type, numero, data)
+  if (type === 'reservation') {
+    const entregada = await enviarReservaAN8n(numero, fecha, data)
+    if (!entregada.ok) {
+      res.status(502).json({ error: 'no-guardado' })
+      return
+    }
+    res.status(200).json({ ok: true, numero })
+    return
+  }
+
+  const saved = await createOrderPage(numero, data)
   if (!saved.ok) {
     res.status(502).json({ error: 'no-guardado' })
     return
   }
 
-  await notifyN8n(type, numero, fecha, data, saved)
+  await notifyN8n(numero, fecha, data, saved)
 
   res.status(200).json({ ok: true, numero })
 }

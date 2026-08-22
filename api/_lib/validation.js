@@ -129,6 +129,11 @@ export function validateReservation(payload) {
       : null
   if (!personas) errors.push('personas')
 
+  // Opcional: si viene vacío o mal formado, la reserva sigue y la
+  // confirmación se maneja por teléfono.
+  const emailCrudo = cleanText(payload?.email, 120)
+  const email = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailCrudo) ? emailCrudo : ''
+
   const zona = ZONAS.includes(payload?.zona) ? payload.zona : 'sin-preferencia'
   const comentario = cleanText(payload?.comentario, 300)
 
@@ -143,5 +148,8 @@ export function validateReservation(payload) {
     return { ok: false, enPasado: true }
   }
 
-  return { ok: true, reservation: { nombre, telefono, fecha, hora, personas, zona, comentario } }
+  return {
+    ok: true,
+    reservation: { nombre, telefono, email, fecha, hora, personas, zona, comentario },
+  }
 }

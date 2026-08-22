@@ -7,13 +7,12 @@
 // El esquema lo crea notion/crear-base.mjs; los nombres de abajo tienen
 // que coincidir exactamente con los de la base o la API responde 400.
 //
-// Las reservas van a una base aparte (NOTION_RESERVATIONS_DATABASE_ID),
-// porque la base de pedidos quedó dedicada. Si esa variable no está
-// configurada, la reserva se rechaza en vez de guardarse en el lugar
-// equivocado.
+// Sólo pedidos: las reservas las escribe el workflow de n8n, porque su
+// Estado depende del análisis de Claude y del chequeo de disponibilidad
+// que pasan allá adentro.
 
 import { METODOS_PAGO } from '../../src/data/paymentData.js'
-import { ZONAS } from '../../src/data/reservasData.js'
+import { montevideoISO } from './tiempo.js'
 
 const NOTION_API = 'https://api.notion.com/v1/pages'
 const REQUEST_TIMEOUT_MS = 8000
@@ -22,7 +21,6 @@ function getConfig() {
   return {
     token: process.env.NOTION_TOKEN,
     databaseId: process.env.NOTION_DATABASE_ID,
-    reservationsDatabaseId: process.env.NOTION_RESERVATIONS_DATABASE_ID,
     // Pinneada a propósito: es la versión estable donde el parent de una
     // página se declara como database_id. Si algún día hay que subirla,
     // se cambia por variable de entorno sin tocar código.
@@ -33,14 +31,6 @@ function getConfig() {
 export function isNotionConfigured() {
   const { token, databaseId } = getConfig()
   return Boolean(token && databaseId)
-}
-
-// Uruguay está en UTC-3 todo el año (no tiene horario de verano desde
-// 2015), así que el offset fijo es seguro. Va explícito para que Notion
-// no interprete la fecha como UTC y corra todo tres horas.
-export function montevideoISO(date = new Date()) {
-  const shifted = new Date(date.getTime() - 3 * 60 * 60 * 1000)
-  return `${shifted.toISOString().slice(0, 19)}-03:00`
 }
 
 function formatPrice(price) {
@@ -93,39 +83,16 @@ function buildOrderProperties(numero, order, recibido) {
   })
 }
 
-function buildReservationProperties(numero, reservation, recibido) {
-  return compact({
-    Reserva: title(`#${numero} · ${reservation.nombre}`),
-    'Número': { number: numero },
-    Estado: select('Nuevo'),
-    Cliente: richText(reservation.nombre),
-    'Teléfono': { phone_number: reservation.telefono || null },
-    Recibido: { date: { start: recibido } },
-    'Fecha reserva': { date: { start: `${reservation.fecha}T${reservation.hora}:00-03:00` } },
-    Personas: { number: reservation.personas },
-    Zona: select(labelOf(ZONAS, reservation.zona, 'Sin preferencia')),
-    Comentario: reservation.comentario ? richText(reservation.comentario) : undefined,
-  })
-}
+export async function createOrderPage(numero, order) {
+  const { token, databaseId, version } = getConfig()
 
-export async function createNotionPage(type, numero, data) {
-  const { token, databaseId, reservationsDatabaseId, version } = getConfig()
-
-  const target = type === 'order' ? databaseId : reservationsDatabaseId
-  if (!token || !target) {
-    console.error(
-      type === 'order'
-        ? '[notion] NOTION_TOKEN o NOTION_DATABASE_ID sin configurar.'
-        : '[notion] NOTION_RESERVATIONS_DATABASE_ID sin configurar: la base de pedidos es sólo para pedidos.'
-    )
+  if (!token || !databaseId) {
+    console.error('[notion] NOTION_TOKEN o NOTION_DATABASE_ID sin configurar.')
     return { ok: false, error: 'no-configurado' }
   }
 
   const recibido = montevideoISO()
-  const properties =
-    type === 'order'
-      ? buildOrderProperties(numero, data, recibido)
-      : buildReservationProperties(numero, data, recibido)
+  const properties = buildOrderProperties(numero, order, recibido)
 
   try {
     const response = await fetch(NOTION_API, {
@@ -135,7 +102,7 @@ export async function createNotionPage(type, numero, data) {
         'Notion-Version': version,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ parent: { database_id: target }, properties }),
+      body: JSON.stringify({ parent: { database_id: databaseId }, properties }),
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     })
 

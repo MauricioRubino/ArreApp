@@ -60,6 +60,18 @@ export default function ReservaForm({
         </Field>
       </div>
 
+      {/* Opcional: sin email la confirmación llega por teléfono, así que
+          no se bloquea la reserva por no tenerlo. */}
+      <Field label="Email (opcional)" error={errors.email}>
+        <input
+          type="email"
+          value={fields.email}
+          onChange={(e) => setField('email', e.target.value)}
+          placeholder="Para mandarte la confirmación"
+          className={inputClass}
+        />
+      </Field>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <Field label="Fecha" error={errors.fecha}>
           <input

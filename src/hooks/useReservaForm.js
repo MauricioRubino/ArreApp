@@ -8,6 +8,7 @@ const INITIAL_FIELDS = {
   nombre: '',
   codigoPais: DEFAULT_COUNTRY,
   telefono: '',
+  email: '',
   fecha: '',
   hora: '',
   personas: '2',
@@ -30,6 +31,11 @@ function validate(fields) {
   if (!fields.nombre.trim()) errors.nombre = 'Ingresá tu nombre.'
   if (fields.telefono.replace(/\D/g, '').length < 6) {
     errors.telefono = 'Ingresá un teléfono válido (te escribimos por acá).'
+  }
+  // El email es opcional, pero si lo escriben tiene que servir: es por
+  // donde va a salir la confirmación.
+  if (fields.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fields.email.trim())) {
+    errors.email = 'Revisá el email, parece incompleto.'
   }
   if (!fields.fecha) errors.fecha = 'Elegí una fecha.'
   else if (fields.fecha < todayInMontevideo()) errors.fecha = 'La fecha no puede ser pasada.'
@@ -74,6 +80,7 @@ export function useReservaForm() {
         ...fields,
         // Prefijo del país elegido + número local, en formato internacional.
         telefono: buildFullPhone(fields.codigoPais, fields.telefono),
+        email: fields.email.trim(),
         personas: Number(fields.personas),
       }
 
