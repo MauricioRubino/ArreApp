@@ -35,9 +35,14 @@ try {
 // Igual que en Preparar analisis: n8n a veces entrega { results: [...] } en
 // un item y a veces un item por pagina. Se aceptan las dos formas.
 const paginasDe = (nodo) => {
-  const items = $(nodo).all();
-  if (items.length === 1 && Array.isArray(items[0].json.results)) return items[0].json.results;
-  return items.map((i) => i.json).filter((j) => j && j.properties);
+  const salida = [];
+  for (const item of $(nodo).all()) {
+    const j = item.json || {};
+    if (Array.isArray(j.results)) salida.push(...j.results);
+    else if (Array.isArray(j.body?.results)) salida.push(...j.body.results);
+    else if (j.properties) salida.push(j);
+  }
+  return salida;
 };
 
 const turnos = paginasDe('Notion - Turno de la fecha');

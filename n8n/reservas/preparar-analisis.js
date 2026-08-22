@@ -15,16 +15,23 @@
 // Ojo: la title de Politicas_Arrecife se llama "Nombre", no "Tema". Leer
 // "Tema" devuelve undefined y las politicas llegan como "(sin tema)".
 
-// n8n entrega la respuesta HTTP de dos formas segun el caso: un item con
-// { results: [...] } adentro, o un item por cada pagina ya desarmado.
-// Asumir una sola dejaba el array vacio, y Claude analizaba la reserva sin
-// ninguna politica: decia "no hay politicas cargadas" y bajaba la
-// confianza por no poder verificar nada.
+// n8n entrega la respuesta HTTP de Notion en formas distintas segun la
+// configuracion del nodo: un item con { results: [...] }, un item por
+// pagina ya desarmada, o —si esta activo "Include Response Headers and
+// Status"— envuelta en { body: { results: [...] } }. Se aceptan las tres.
+//
+// Cuando esto fallaba, el array quedaba vacio y Claude analizaba la
+// reserva sin ninguna politica: escribia "no hay politicas cargadas" y
+// bajaba la confianza por no poder contrastar nada. El workflow no daba
+// error, solo decidia peor.
 const items = $input.all();
-const todas =
-  items.length === 1 && Array.isArray(items[0].json.results)
-    ? items[0].json.results
-    : items.map((i) => i.json).filter((j) => j && j.properties);
+const todas = [];
+for (const item of items) {
+  const j = item.json || {};
+  if (Array.isArray(j.results)) todas.push(...j.results);
+  else if (Array.isArray(j.body?.results)) todas.push(...j.body.results);
+  else if (j.properties) todas.push(j);
+}
 
 const paginas = todas.filter((p) => p.properties?.Activo?.checkbox === true);
 const d = $('Reserva nueva').first().json.body.datos;
@@ -108,4 +115,16 @@ const peticion = {
   messages: [{ role: 'user', content: usuario }],
 };
 
-return [{ json: { contexto, politicas: lineas.length, politicas_totales: todas.length, peticion } }];
+return [
+  {
+    json: {
+      contexto,
+      politicas: lineas.length,
+      politicas_totales: todas.length,
+      // Diagnostico: si politicas_totales es 0, esto dice que forma tenia
+      // la respuesta para poder arreglarla sin adivinar.
+      forma_entrada: items.length === 0 ? 'sin items' : Object.keys(items[0].json || {}).join(','),
+      peticion,
+    },
+  },
+];
