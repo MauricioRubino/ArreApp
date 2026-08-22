@@ -12,12 +12,15 @@
 const cuerpo = $('Reserva nueva').first().json.body;
 const d = cuerpo.datos;
 
-// Con structured outputs la respuesta ya viene validada contra el esquema,
-// pero si la llamada fallo el nodo puede traer otra cosa.
+// El JSON NO esta en content[0]: claude-opus-5 razona por defecto, asi que
+// el primer bloque suele ser de tipo "thinking" y el texto viene despues.
+// Hay que buscar el bloque de texto, no asumir la posicion.
 let ia;
 let iaFallo = false;
 try {
-  ia = JSON.parse($('Claude - Analizar').first().json.content[0].text);
+  const bloques = $('Claude - Analizar').first().json.content || [];
+  const texto = bloques.find((b) => b.type === 'text')?.text;
+  ia = JSON.parse(texto);
 } catch {
   iaFallo = true;
   ia = {

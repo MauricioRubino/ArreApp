@@ -61,12 +61,18 @@ const usuario = [
 
 const peticion = {
   model: 'claude-opus-5',
-  max_tokens: 1000,
+  // Con el razonamiento activado (que en opus-5 viene por defecto), los
+  // tokens de pensamiento salen de este presupuesto: 1000 se queda corto y
+  // la respuesta se corta a la mitad.
+  max_tokens: 4000,
   system,
   // Structured outputs: la respuesta viene validada contra el esquema, asi
   // que no hace falta pedir "devolve solo JSON" ni manejar el caso de que
   // conteste con texto alrededor.
   output_config: {
+    // Clasificar una reserva contra 23 politicas no necesita razonar hondo;
+    // bajar el esfuerzo recorta latencia y costo.
+    effort: 'low',
     format: {
       type: 'json_schema',
       schema: {
