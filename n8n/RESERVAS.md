@@ -82,12 +82,14 @@ a `.env.local` como `N8N_RESERVAS_WEBHOOK_URL`.
 
 Los cuatro nodos Code viven como archivos en [`reservas/`](reservas/):
 
-| Archivo | Nodo |
+Cada archivo se llama igual que el nodo que contiene:
+
+| Archivo | Nodo en n8n |
 | --- | --- |
-| `preparar-claude.js` | Preparar análisis (contexto RAG + petición) |
-| `decidir.js` | Decidir (combina todo y elige la ruta) |
-| `mensaje-duenio.js` | Mensaje al dueño (texto de Telegram) |
-| `evaluar-aprobacion.js` | Evaluar aprobación (polling) |
+| `preparar-analisis.js` | **Preparar analisis** — contexto RAG + petición a Claude |
+| `decidir.js` | **Decidir** — combina todo y elige la ruta |
+| `mensaje-al-dueno.js` | **Mensaje al dueno** — texto de Telegram |
+| `evaluar-aprobacion.js` | **Evaluar aprobacion** — polling del estado |
 
 `node n8n/generar-workflow-reservas.mjs` regenera el JSON a partir de ellos, y
 antes de escribirlo verifica que **todos los nodos sean alcanzables desde el

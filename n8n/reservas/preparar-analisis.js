@@ -1,4 +1,4 @@
-// Nodo Code "Preparar analisis".
+// Nodo Code "Preparar analisis" (este archivo se llama igual que el nodo).
 //
 // Entrada: la respuesta cruda de Notion al consultar Politicas_Arrecife.
 //

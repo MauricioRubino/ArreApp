@@ -165,7 +165,7 @@ const nodes = [
 
   codeNode(
     'Preparar analisis',
-    'preparar-claude.js',
+    'preparar-analisis.js',
     'Arma el contexto RAG y el cuerpo completo de la llamada a Claude.'
   ),
 
@@ -223,7 +223,7 @@ const nodes = [
 
   notionHttp('Notion - Crear reserva', 'https://api.notion.com/v1/pages', { body: CREAR_RESERVA }),
 
-  codeNode('Mensaje al dueno', 'mensaje-duenio.js'),
+  codeNode('Mensaje al dueno', 'mensaje-al-dueno.js'),
 
   {
     parameters: {
