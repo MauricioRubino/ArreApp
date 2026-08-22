@@ -15,9 +15,11 @@ const d = cuerpo.datos;
 // Con structured outputs la respuesta ya viene validada contra el esquema,
 // pero si la llamada fallo el nodo puede traer otra cosa.
 let ia;
+let iaFallo = false;
 try {
   ia = JSON.parse($('Claude - Analizar').first().json.content[0].text);
 } catch {
+  iaFallo = true;
   ia = {
     requiere_revision_humana: true,
     motivo_revision: 'No se pudo analizar la reserva automaticamente',
@@ -48,7 +50,9 @@ const motivos = [];
 if (ia.requiere_revision_humana) motivos.push(ia.motivo_revision || 'La IA pidio revision');
 if (ia.viola_politica) motivos.push(`Politica: ${ia.politica_relacionada || 'sin especificar'}`);
 if (d.personas > 10) motivos.push(`Grupo grande (${d.personas} personas)`);
-if ((ia.confianza ?? 0) < 0.7) motivos.push(`Confianza baja (${ia.confianza})`);
+// Si la IA fallo, la confianza es 0 por definicion: agregar "confianza
+// baja" al motivo solo confunde a quien lee el aviso.
+if (!iaFallo && (ia.confianza ?? 0) < 0.7) motivos.push(`Confianza baja (${ia.confianza})`);
 if (!hayLugar) motivos.push(`Sin lugar: ${ocupacion} + ${d.personas} supera ${capacidad}`);
 
 const requiereRevision = motivos.length > 0;
