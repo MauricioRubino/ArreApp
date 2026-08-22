@@ -1,7 +1,12 @@
 // Nodo Code "Preparar analisis".
 //
-// Entrada: la respuesta cruda de Notion al consultar Politicas_Arrecife
-// con Activo = true.
+// Entrada: la respuesta cruda de Notion al consultar Politicas_Arrecife.
+//
+// El filtro Activo se aplica aca y no en la consulta: el filtro por
+// propiedad venia fallando desde el nodo HTTP de n8n con "Could not find
+// property with name or id: Activo", aunque el mismo request funciona
+// contra la API. Con 23 politicas traerlas todas y filtrar en JS no cuesta
+// nada y saca una pieza fragil del medio.
 //
 // Arma el contexto RAG y ademas el cuerpo COMPLETO de la llamada a la API
 // de Anthropic. El nodo HTTP despues solo lo serializa: armar ese JSON a
@@ -10,7 +15,8 @@
 // Ojo: la title de Politicas_Arrecife se llama "Nombre", no "Tema". Leer
 // "Tema" devuelve undefined y las politicas llegan como "(sin tema)".
 
-const paginas = $input.first().json.results || [];
+const todas = $input.first().json.results || [];
+const paginas = todas.filter((p) => p.properties?.Activo?.checkbox === true);
 const d = $('Reserva nueva').first().json.body.datos;
 
 const texto = (prop) => prop?.rich_text?.[0]?.plain_text || '';
@@ -86,4 +92,4 @@ const peticion = {
   messages: [{ role: 'user', content: usuario }],
 };
 
-return [{ json: { contexto, politicas: lineas.length, peticion } }];
+return [{ json: { contexto, politicas: lineas.length, politicas_totales: todas.length, peticion } }];

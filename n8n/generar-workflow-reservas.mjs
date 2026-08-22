@@ -155,10 +155,11 @@ const nodes = [
     'Notion - Politicas activas',
     `https://api.notion.com/v1/databases/${BASES.politicas}/query`,
     {
-      body: JSON.stringify({
-        filter: { property: 'Activo', checkbox: { equals: true } },
-        page_size: 100,
-      }),
+      // Sin filtro a proposito: filtrar por propiedad fallaba desde el nodo
+      // HTTP de n8n ("Could not find property with name or id: Activo")
+      // aunque el mismo request anda contra la API. Son 23 politicas: se
+      // traen todas y se filtra por Activo en el Code.
+      body: '={{ JSON.stringify({ page_size: 100 }) }}',
     }
   ),
 
@@ -325,7 +326,9 @@ const nodes = [
 
   notionHttp('Notion - Marcar vencida', '=https://api.notion.com/v1/pages/{{ $json.reserva_id }}', {
     method: 'PATCH',
-    body: JSON.stringify({ properties: { Estado: { select: { name: 'Vencida' } } } }),
+    // Todos los cuerpos van como expresion, no literales: el unico nodo
+    // que fallaba era el que tenia el cuerpo literal.
+    body: '={{ JSON.stringify({ properties: { Estado: { select: { name: "Vencida" } } } }) }}',
   }),
 
   {
