@@ -58,6 +58,13 @@ const CANALES = [
   { name: 'Telegram', color: 'purple' },
 ]
 
+// Las mismas zonas que ofrece el formulario de la app (reservasData.js).
+const ZONAS = [
+  { name: 'Sin preferencia', color: 'default' },
+  { name: 'Interior', color: 'brown' },
+  { name: 'Terraza frente al puerto', color: 'blue' },
+]
+
 const TIPOS_ERROR = [
   { name: 'Dato_Faltante', color: 'yellow' },
   { name: 'Formato_Invalido', color: 'orange' },
@@ -79,6 +86,7 @@ const PLAN = {
       Numero: { number: { format: 'number' } },
       Motivo_Revision: { rich_text: {} },
       Politica_Relacionada: { rich_text: {} },
+      Zona: { select: { options: ZONAS } },
     },
   },
   Errores: {
@@ -126,6 +134,19 @@ for (const [nombre, plan] of Object.entries(PLAN)) {
     const tipoActual = existentes[prop].type
     const tipoNuevo = Object.keys(definicion).find((k) => k !== 'name')
     const destino = definicion.name ?? prop
+
+    // Idempotencia: si el destino ya existe con el tipo correcto, la
+    // conversión ya se hizo. Sin este guard, una segunda corrida renombra
+    // la propiedad equivocada — la que se creó como reemplazo — y Notion
+    // le pone "Estado 1" al duplicado.
+    if (destino !== prop && existentes[destino]?.type === tipoNuevo) {
+      console.log(`   = "${destino}" ya existe (${tipoNuevo}), conversión ya hecha`)
+      continue
+    }
+    if (destino === prop && tipoActual === tipoNuevo) {
+      console.log(`   = "${prop}" ya es ${tipoNuevo}, no se toca`)
+      continue
+    }
     if (filas > 0) {
       console.log(`   ✗ BLOQUEADO: "${prop}" (${tipoActual}) → "${destino}" (${tipoNuevo})`)
       console.log(`      la base tiene datos; el cambio de tipo los descartaría`)
@@ -137,11 +158,11 @@ for (const [nombre, plan] of Object.entries(PLAN)) {
   }
 
   for (const [prop, definicion] of Object.entries(plan.agregar)) {
-    // Si la propiedad se está renombrando en este mismo patch, el hueco
-    // queda libre y el alta se hace en una segunda pasada.
-    const seLibera = Object.entries(plan.convertir).some(([, d]) => d.name === prop) === false
-      && Object.keys(plan.convertir).includes(prop)
-    if (existentes[prop] && !seLibera) {
+    // El nombre queda libre sólo si esta misma corrida va a renombrar esa
+    // propiedad (está en el patch). Si la conversión ya se hizo antes, el
+    // nombre está ocupado por la propiedad nueva y no hay nada que agregar.
+    const seLiberaAhora = patch[prop] !== undefined
+    if (existentes[prop] && !seLiberaAhora) {
       console.log(`   = "${prop}" ya existe (${existentes[prop].type}), no se toca`)
       continue
     }
