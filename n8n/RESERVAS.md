@@ -71,7 +71,7 @@ Después completar, igual que en el de pedidos:
 | --- | --- |
 | Nodo **Secreto valido** | tu `N8N_SECRET` |
 | Nodos de **Telegram** (2) | el `chatId` del dueño |
-| Nodos **Notion** (5) | elegir la credencial `notionApi` |
+| Nodos **Notion** (6) | elegir la credencial `notionApi` — las URLs ya vienen cargadas |
 | Nodo **Claude - Analizar** | credencial Header Auth con `x-api-key` |
 | Nodos de **Gmail** (2) | elegir la credencial de Gmail |
 
