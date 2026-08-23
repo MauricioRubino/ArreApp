@@ -4,9 +4,9 @@ Guardá acá los PNG. Los nombres sugeridos son los que referencia el índice.
 
 | Archivo | Qué mostrar |
 | --- | --- |
-| `01-formulario.png` | El formulario de reserva completado en la web |
+| ~~`01-formulario.png`~~ | ✅ listo — el formulario de reserva |
 | `02-workflow.png` | El flujo completo en el editor de n8n |
-| `03-ejecucion.png` | Una ejecución exitosa en la pestaña Executions, con los nodos en verde |
+| ~~`03-ejecuciones.png`~~ | ✅ listo — historial de ejecuciones en n8n |
 | `04-analisis-ia.png` | La salida del nodo `Claude - Analizar`, con el JSON validado |
 | `05-notion-reserva.png` | La reserva en Notion con `Motivo_Revision` citando las políticas |
 | `06-telegram.png` | El aviso recibido en Telegram |

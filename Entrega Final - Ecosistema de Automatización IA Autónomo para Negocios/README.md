@@ -53,11 +53,12 @@ conexión entrante.
 
 ## 3 · Base de datos (modo lectura)
 
+Vistas publicadas en Notion, accesibles sin cuenta ni sesión:
+
 | Vista | Enlace |
 | --- | --- |
-| **Reservas** — panel de operación | https://app.notion.com/p/3c119da0dec98087b386ed1a5e21a39e?v=3c519da0dec980adad00000cf21a8216 |
-| **Reservas** — vista completa | https://app.notion.com/p/3c119da0dec98087b386ed1a5e21a39e?v=3c119da0dec980c380e5000c4aa4828c |
-| **Politicas_Arrecife** — base de conocimiento del RAG | https://app.notion.com/p/3c119da0dec980be8594c3080b55c1d6?v=3c519da0dec980c386f5000c3256eb90 |
+| **Reservas** — panel de operación | https://efficacious-limburger-84e.notion.site/3c119da0dec98087b386ed1a5e21a39e?v=3c519da0dec980adad00000cf21a8216 |
+| **Politicas_Arrecife** — base de conocimiento del RAG | https://efficacious-limburger-84e.notion.site/3c119da0dec980be8594c3080b55c1d6?v=3c519da0dec980c386f5000c3256eb90 |
 
 Las 23 políticas de la tercera base son las que alimentan el análisis: se
 recuperan en cada ejecución y se inyectan en el prompt. Editar una política ahí
@@ -65,7 +66,13 @@ cambia cómo se evalúa la próxima reserva, sin tocar el flujo.
 
 ## 4 · Evidencia
 
-Las capturas están en [`capturas/`](capturas/).
+| Captura | Muestra |
+| --- | --- |
+| [01-formulario.png](capturas/01-formulario.png) | El formulario de reserva en producción |
+| [03-ejecuciones.png](capturas/03-ejecuciones.png) | El historial de ejecuciones en n8n, con la última exitosa en 9,9 s |
+
+El historial incluye ejecuciones fallidas de la etapa de desarrollo: quedaron a
+propósito, porque documentan las pruebas del camino infeliz.
 
 Los indicadores del sistema se pueden recalcular en cualquier momento contra la
 API con `npm run notion:kpis`, lo que permite verificar que las vistas
