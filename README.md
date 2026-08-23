@@ -164,6 +164,7 @@ La documentación del ecosistema de automatización está en [`docs/`](docs/):
 | [`entrega-final.pdf`](docs/entrega-final.pdf) | Mapa de arquitectura, estructuras de datos, matriz de costos, seguridad y resiliencia |
 | [`entrega-final.html`](docs/entrega-final.html) | Fuente del PDF; se regenera con el comando de abajo |
 | [`dashboard.md`](docs/dashboard.md) | Vistas del panel de control e indicadores |
+| [`guion-video.md`](docs/guion-video.md) | Guion cronometrado del video demo |
 
 Los archivos técnicos de respaldo son los workflows de
 [`n8n/`](n8n/) y los scripts de esquema de [`notion/`](notion/).
