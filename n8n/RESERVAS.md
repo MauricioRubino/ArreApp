@@ -5,12 +5,15 @@ desde la página de reservas de la app.
 
 ```
 Reserva nueva (Webhook)
-  └ Secreto válido
+  └ Configuración (IDs y secreto, en un solo lugar)
+      └ Secreto válido
       └ Notion: políticas activas → Preparar análisis → Claude
           └ Notion: turno de la fecha → Notion: reservas confirmadas
               └ Decidir
                   ├ duplicada → descartar
-                  └ Notion: crear reserva → Telegram al dueño
+                  └ Notion: crear reserva (vinculada a su turno)
+                       ├ si falló la IA → Notion: registrar en Errores
+                       └ Telegram al dueño
                        ├ automática → Gmail al cliente (si dejó email)
                        └ a revisar → esperar 5 min → releer Notion
                                        ├ sigue esperando → volver a esperar
@@ -57,8 +60,23 @@ respuesta, así que no hay que pedir "devolvé sólo JSON" ni manejar el caso de
 que conteste con texto alrededor. Si la llamada falla igual, `Decidir` manda la
 reserva a revisión humana en vez de tirarla.
 
-**El mensaje va en texto plano, sin `parse_mode`**: un nombre con `_` o `&`
-rompería el formato de Telegram justo en medio del servicio.
+**Los mensajes van en `parse_mode: HTML` con `&`, `<` y `>` escapados.** El
+nodo de n8n usa Markdown por defecto, y basta un `_` —el nombre de una
+política, por ejemplo— para que Telegram rechace el mensaje entero.
+
+**Ningún identificador vive dentro de un nodo.** Las bases, el secreto y las
+horas de vencimiento salen del nodo `Configuracion`, que a su vez los lee de
+variables de entorno de n8n y sólo cae al literal si no están. Cambiar de
+workspace o levantar un ambiente de prueba es tocar un nodo, no doce.
+
+**Los fallos de IA quedan registrados.** Si Claude no contesta, la reserva
+sigue su curso hacia revisión humana —no se pierde— pero además se escribe
+una fila en la base `Errores`, vinculada por relación a la reserva que la
+generó. Antes ese fallo era invisible: el workflow terminaba en verde.
+
+**Cada reserva queda vinculada a su turno.** La relación
+`Turnos.Reservas_Vinculadas` se pasó a bidireccional, así que una sola
+escritura desde la reserva llena los dos lados y ningún dato queda aislado.
 
 ## Importar
 
@@ -69,9 +87,9 @@ Después completar, igual que en el de pedidos:
 
 | Dónde | Qué poner |
 | --- | --- |
-| Nodo **Secreto valido** | tu `N8N_SECRET` |
+| Nodo **Configuracion** | tu `N8N_SECRET` en `ARRECIFE_SECRET` (o el literal de respaldo) |
 | Nodos de **Telegram** (2) | el `chatId` del dueño |
-| Nodos **Notion** (6) | elegir la credencial `notionApi` — las URLs ya vienen cargadas |
+| Nodos **Notion** (7) | elegir la credencial `notionApi` — las URLs ya vienen cargadas |
 | Nodo **Claude - Analizar** | credencial Header Auth con `x-api-key` |
 | Nodos de **Gmail** (2) | elegir la credencial de Gmail |
 
@@ -90,6 +108,9 @@ Cada archivo se llama igual que el nodo que contiene:
 | `decidir.js` | **Decidir** — combina todo y elige la ruta |
 | `mensaje-al-dueno.js` | **Mensaje al dueno** — texto de Telegram |
 | `evaluar-aprobacion.js` | **Evaluar aprobacion** — polling del estado |
+| `configuracion.js` | **Configuracion** — IDs de bases, secreto y vencimiento |
+| `armar-error.js` | **Armar error** — registro en la base Errores |
+| `retomar-datos.js` | **Retomar datos** — repone los datos tras el nodo de Telegram |
 
 `node n8n/generar-workflow-reservas.mjs` regenera el JSON a partir de ellos, y
 antes de escribirlo verifica que **todos los nodos sean alcanzables desde el

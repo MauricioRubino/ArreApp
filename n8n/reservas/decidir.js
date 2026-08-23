@@ -48,7 +48,8 @@ const paginasDe = (nodo) => {
 const turnos = paginasDe('Notion - Turno de la fecha');
 const confirmadas = paginasDe('Notion - Reservas confirmadas');
 
-const capacidad = turnos[0]?.properties?.Capacidad_Total?.number ?? null;
+const turnoPagina = turnos[0] ?? null;
+const capacidad = turnoPagina?.properties?.Capacidad_Total?.number ?? null;
 const ocupacion = confirmadas.reduce((suma, p) => suma + (p.properties?.Personas?.number || 0), 0);
 // Sin turno cargado para esa fecha no se bloquea: se asume que hay lugar y
 // que el encargado lo revisara si hace falta.
@@ -110,6 +111,11 @@ return [
       ocupacion,
       hay_lugar: hayLugar,
       politicas_consultadas: politicasConsultadas,
+      // Para vincular la reserva con su turno al crearla (relacion en Notion).
+      turno_id: turnoPagina?.id ?? null,
+      // Lo lee la rama que registra el error: si la IA no contesto, queda
+      // constancia en la base Errores en vez de perderse.
+      ia_fallo: iaFallo,
     },
   },
 ];

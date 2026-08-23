@@ -16,13 +16,13 @@ import path from 'node:path'
 const dir = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'))
 const code = (archivo) => fs.readFileSync(path.join(dir, 'reservas', archivo), 'utf8')
 
-const BASES = {
-  politicas: '3c119da0dec980be8594c3080b55c1d6',
-  turnos: '3c119da0dec980748fbad1f52292f811',
-  reservas: '3c119da0dec98087b386ed1a5e21a39e',
-}
-
 const NOTION_VERSION = '2022-06-28'
+
+// Toda referencia a una base sale del nodo Configuracion: ningun ID queda
+// escrito dentro de un nodo de Notion.
+const CFG = "$('Configuracion').first().json"
+const urlQuery = (base) =>
+  `=https://api.notion.com/v1/databases/{{ ${CFG}.bases.${base} }}/query`
 
 let x = 0
 const pos = () => [(x += 220) - 220, 0]
@@ -97,7 +97,7 @@ const FILTRO_CONFIRMADAS =
 // El cuerpo del POST que crea la pagina. Todos los nombres salen del
 // esquema real de la base (ver notion/reservas-esquema.mjs).
 const CREAR_RESERVA = `={{ JSON.stringify({
-  parent: { database_id: '${BASES.reservas}' },
+  parent: { database_id: ${CFG}.bases.reservas },
   properties: {
     Nombre_Cliente: { title: [{ text: { content: $json.nombre } }] },
     Numero: { number: $json.numero },
@@ -109,6 +109,7 @@ const CREAR_RESERVA = `={{ JSON.stringify({
     Hora: { rich_text: [{ text: { content: $json.hora } }] },
     Personas: { number: $json.personas },
     Zona: { select: { name: $json.zonaLabel } },
+    Turno: $json.turno_id ? { relation: [{ id: $json.turno_id }] } : { relation: [] },
     Observaciones: { rich_text: [{ text: { content: $json.comentario || '' } }] },
     Confianza_IA: { number: $json.confianza },
     Requiere_Revision: { checkbox: $json.requiere_revision },
@@ -145,15 +146,27 @@ const nodes = [
     notes: 'La URL de produccion es el N8N_RESERVAS_WEBHOOK_URL que va en Vercel.',
   },
 
+  codeNode(
+    'Configuracion',
+    'configuracion.js',
+    'Unico lugar con los IDs de las bases y el secreto. El resto los referencia desde aca.'
+  ),
+
   ifNode(
     'Secreto valido',
-    [cond('secreto', "={{ $json.headers['x-arrecife-secret'] }}", 'PEGA-ACA-TU-N8N-SECRET')],
+    [
+      cond(
+        'secreto',
+        "={{ $('Reserva nueva').first().json.headers['x-arrecife-secret'] }}",
+        `={{ ${CFG}.secreto }}`
+      ),
+    ],
     'El webhook es publico: sin este chequeo cualquiera carga reservas falsas.'
   ),
 
   notionHttp(
     'Notion - Politicas activas',
-    `https://api.notion.com/v1/databases/${BASES.politicas}/query`,
+    urlQuery('politicas'),
     {
       // Sin filtro a proposito: filtrar por propiedad fallaba desde el nodo
       // HTTP de n8n ("Could not find property with name or id: Activo")
@@ -195,13 +208,13 @@ const nodes = [
     notes: 'Credencial Header Auth con x-api-key. Si falla, Decidir manda la reserva a revision humana.',
   },
 
-  notionHttp('Notion - Turno de la fecha', `https://api.notion.com/v1/databases/${BASES.turnos}/query`, {
+  notionHttp('Notion - Turno de la fecha', urlQuery('turnos'), {
     body: FILTRO_TURNO,
   }),
 
   notionHttp(
     'Notion - Reservas confirmadas',
-    `https://api.notion.com/v1/databases/${BASES.reservas}/query`,
+    urlQuery('reservas'),
     {
       body: FILTRO_CONFIRMADAS,
       notes: 'Sirve para dos cosas: calcular la ocupacion del dia y detectar duplicados.',
@@ -242,6 +255,19 @@ const nodes = [
     'retomar-datos.js',
     'El nodo de Telegram devuelve su propia respuesta: sin esto, los datos de la reserva no llegan al resto del flujo.'
   ),
+
+  ifNode(
+    'Fallo la IA',
+    [cond('fallo', '={{ $json.ia_fallo }}', true, 'boolean')],
+    'Rama paralela: la reserva sigue su curso igual, esto solo deja constancia.'
+  ),
+
+  codeNode('Armar error', 'armar-error.js'),
+
+  notionHttp('Notion - Registrar error', 'https://api.notion.com/v1/pages', {
+    body: '={{ JSON.stringify($json.peticion) }}',
+    notes: 'Deja el fallo en la base Errores, vinculado a la reserva que lo genero.',
+  }),
 
   ifNode('Requiere aprobacion', [cond('rev', '={{ $json.requiere_revision }}', true, 'boolean')]),
 
@@ -360,7 +386,8 @@ const salida = (nodo, ...destinos) => ({
 })
 
 const connections = {
-  ...salida('Reserva nueva', 'Secreto valido'),
+  ...salida('Reserva nueva', 'Configuracion'),
+  ...salida('Configuracion', 'Secreto valido'),
   ...salida('Secreto valido', 'Notion - Politicas activas', null),
   ...salida('Notion - Politicas activas', 'Preparar analisis'),
   ...salida('Preparar analisis', 'Claude - Analizar'),
@@ -370,7 +397,9 @@ const connections = {
   ...salida('Decidir', 'Es duplicada'),
   ...salida('Es duplicada', 'Duplicada descartada', 'Notion - Crear reserva'),
   ...salida('Notion - Crear reserva', 'Mensaje al dueno'),
-  ...salida('Mensaje al dueno', 'Telegram - Avisar al dueno'),
+  ...salida('Mensaje al dueno', ['Telegram - Avisar al dueno', 'Fallo la IA']),
+  ...salida('Fallo la IA', 'Armar error', null),
+  ...salida('Armar error', 'Notion - Registrar error'),
   ...salida('Telegram - Avisar al dueno', 'Retomar datos'),
   ...salida('Retomar datos', 'Requiere aprobacion'),
   ...salida('Requiere aprobacion', 'Esperar 5 min', 'Tiene email'),

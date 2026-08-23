@@ -20,6 +20,20 @@
     },
     {
       "parameters": {
+        "jsCode": "// Nodo Code \"Configuracion\".\n//\n// Unico lugar del workflow donde viven los identificadores. Todos los nodos\n// que hablan con Notion arman su URL desde aca, en vez de tener el ID de la\n// base escrito adentro: si una base se muda o se duplica para un ambiente de\n// prueba, se cambia en un solo lugar.\n//\n// Los valores se leen primero de las variables de entorno de n8n y recien\n// despues del literal, asi la misma exportacion del workflow sirve para\n// produccion y para pruebas sin editar nodos. El acceso a $env puede estar\n// bloqueado segun la instancia, por eso va protegido.\n\nconst leerEnv = (clave, porDefecto) => {\n  try {\n    return $env[clave] || porDefecto;\n  } catch {\n    return porDefecto;\n  }\n};\n\nconst bases = {\n  politicas: leerEnv('ARRECIFE_DB_POLITICAS', '3c119da0dec980be8594c3080b55c1d6'),\n  turnos: leerEnv('ARRECIFE_DB_TURNOS', '3c119da0dec980748fbad1f52292f811'),\n  reservas: leerEnv('ARRECIFE_DB_RESERVAS', '3c119da0dec98087b386ed1a5e21a39e'),\n  errores: leerEnv('ARRECIFE_DB_ERRORES', '3c119da0dec98097b4d8c21f9f9fc137'),\n};\n\nreturn [\n  {\n    json: {\n      bases,\n      // Se compara contra el header que manda la app. Ponerlo aca y no en el\n      // nodo IF permite rotarlo sin tocar la logica del flujo.\n      secreto: leerEnv('ARRECIFE_SECRET', 'PEGA-ACA-TU-N8N-SECRET'),\n      // Horas que espera una reserva en revision antes de vencer.\n      horasParaVencer: Number(leerEnv('ARRECIFE_HORAS_VENCIMIENTO', 4)),\n    },\n  },\n];\n"
+      },
+      "name": "Configuracion",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "notes": "Unico lugar con los IDs de las bases y el secreto. El resto los referencia desde aca.",
+      "id": "b2000000-0000-4000-8000-000000000101"
+    },
+    {
+      "parameters": {
         "conditions": {
           "options": {
             "caseSensitive": true,
@@ -30,8 +44,8 @@
           "conditions": [
             {
               "id": "secreto",
-              "leftValue": "={{ $json.headers['x-arrecife-secret'] }}",
-              "rightValue": "PEGA-ACA-TU-N8N-SECRET",
+              "leftValue": "={{ $('Reserva nueva').first().json.headers['x-arrecife-secret'] }}",
+              "rightValue": "={{ $('Configuracion').first().json.secreto }}",
               "operator": {
                 "type": "string",
                 "operation": "equals"
@@ -46,16 +60,16 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        220,
+        440,
         0
       ],
       "notes": "El webhook es publico: sin este chequeo cualquiera carga reservas falsas.",
-      "id": "b2000000-0000-4000-8000-000000000101"
+      "id": "b2000000-0000-4000-8000-000000000102"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "https://api.notion.com/v1/databases/3c119da0dec980be8594c3080b55c1d6/query",
+        "url": "=https://api.notion.com/v1/databases/{{ $('Configuracion').first().json.bases.politicas }}/query",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "notionApi",
         "sendHeaders": true,
@@ -76,10 +90,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        440,
+        660,
         0
       ],
-      "id": "b2000000-0000-4000-8000-000000000102"
+      "id": "b2000000-0000-4000-8000-000000000103"
     },
     {
       "parameters": {
@@ -89,11 +103,11 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        660,
+        880,
         0
       ],
       "notes": "Arma el contexto RAG y el cuerpo completo de la llamada a Claude.",
-      "id": "b2000000-0000-4000-8000-000000000103"
+      "id": "b2000000-0000-4000-8000-000000000104"
     },
     {
       "parameters": {
@@ -123,17 +137,17 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        880,
+        1100,
         0
       ],
       "onError": "continueRegularOutput",
       "notes": "Credencial Header Auth con x-api-key. Si falla, Decidir manda la reserva a revision humana.",
-      "id": "b2000000-0000-4000-8000-000000000104"
+      "id": "b2000000-0000-4000-8000-000000000105"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "https://api.notion.com/v1/databases/3c119da0dec980748fbad1f52292f811/query",
+        "url": "=https://api.notion.com/v1/databases/{{ $('Configuracion').first().json.bases.turnos }}/query",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "notionApi",
         "sendHeaders": true,
@@ -154,15 +168,15 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1100,
+        1320,
         0
       ],
-      "id": "b2000000-0000-4000-8000-000000000105"
+      "id": "b2000000-0000-4000-8000-000000000106"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "https://api.notion.com/v1/databases/3c119da0dec98087b386ed1a5e21a39e/query",
+        "url": "=https://api.notion.com/v1/databases/{{ $('Configuracion').first().json.bases.reservas }}/query",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "notionApi",
         "sendHeaders": true,
@@ -183,25 +197,25 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1320,
+        1540,
         0
       ],
       "notes": "Sirve para dos cosas: calcular la ocupacion del dia y detectar duplicados.",
-      "id": "b2000000-0000-4000-8000-000000000106"
+      "id": "b2000000-0000-4000-8000-000000000107"
     },
     {
       "parameters": {
-        "jsCode": "// Nodo Code \"Decidir\".\n//\n// Junta las cuatro fuentes y decide la ruta. Cada una se referencia por\n// nombre de nodo a proposito: el $json que llega aca es el de Claude, no\n// el de la reserva.\n//\n// La ocupacion NO sale de un campo Ocupacion en Turnos: se calcula\n// sumando las personas de las reservas ya confirmadas de esa fecha. Un\n// contador guardado se desincroniza en cuanto alguien cancela o carga una\n// reserva a mano.\n\nconst cuerpo = $('Reserva nueva').first().json.body;\nconst d = cuerpo.datos;\n\n// El JSON NO esta en content[0]: claude-opus-5 razona por defecto, asi que\n// el primer bloque suele ser de tipo \"thinking\" y el texto viene despues.\n// Hay que buscar el bloque de texto, no asumir la posicion.\nlet ia;\nlet iaFallo = false;\ntry {\n  const bloques = $('Claude - Analizar').first().json.content || [];\n  const texto = bloques.find((b) => b.type === 'text')?.text;\n  ia = JSON.parse(texto);\n} catch {\n  iaFallo = true;\n  ia = {\n    requiere_revision_humana: true,\n    motivo_revision: 'No se pudo analizar la reserva automaticamente',\n    confianza: 0,\n    viola_politica: false,\n    politica_relacionada: null,\n  };\n}\n\n// Igual que en Preparar analisis: n8n a veces entrega { results: [...] } en\n// un item y a veces un item por pagina. Se aceptan las dos formas.\nconst paginasDe = (nodo) => {\n  const salida = [];\n  for (const item of $(nodo).all()) {\n    const j = item.json || {};\n    if (Array.isArray(j.results)) salida.push(...j.results);\n    else if (Array.isArray(j.body?.results)) salida.push(...j.body.results);\n    else if (j.properties) salida.push(j);\n  }\n  return salida;\n};\n\nconst turnos = paginasDe('Notion - Turno de la fecha');\nconst confirmadas = paginasDe('Notion - Reservas confirmadas');\n\nconst capacidad = turnos[0]?.properties?.Capacidad_Total?.number ?? null;\nconst ocupacion = confirmadas.reduce((suma, p) => suma + (p.properties?.Personas?.number || 0), 0);\n// Sin turno cargado para esa fecha no se bloquea: se asume que hay lugar y\n// que el encargado lo revisara si hace falta.\nconst hayLugar = capacidad === null ? true : ocupacion + d.personas <= capacidad;\n\n// Mismo telefono, misma fecha y ya confirmada: es la misma reserva mandada\n// dos veces, no una nueva.\nconst telefono = String(d.telefono || '').replace(/\\D/g, '');\nconst duplicada = confirmadas.some((p) => {\n  const otro = p.properties?.Telefono?.rich_text?.[0]?.plain_text || '';\n  return String(otro).replace(/\\D/g, '') === telefono;\n});\n\n// Cuantas politicas vio realmente el analisis. Si son cero, Claude\n// clasifico a ciegas: eso es una anomalia del sistema, no algo de la\n// reserva, y tiene que quedar registrado en vez de disfrazarse de\n// \"confianza baja\".\nconst politicasConsultadas = $('Preparar analisis').first().json.politicas ?? 0;\nconst formaEntrada = $('Preparar analisis').first().json.forma_entrada ?? 'desconocida';\n\nconst motivos = [];\nif (politicasConsultadas === 0) {\n  motivos.push(`ATENCION: el analisis corrio sin politicas cargadas (forma recibida: ${formaEntrada})`);\n}\nif (ia.requiere_revision_humana) motivos.push(ia.motivo_revision || 'La IA pidio revision');\nif (ia.viola_politica) motivos.push(`Politica: ${ia.politica_relacionada || 'sin especificar'}`);\nif (d.personas > 10) motivos.push(`Grupo grande (${d.personas} personas)`);\n// Si la IA fallo, la confianza es 0 por definicion: agregar \"confianza\n// baja\" al motivo solo confunde a quien lee el aviso.\nif (!iaFallo && (ia.confianza ?? 0) < 0.7) motivos.push(`Confianza baja (${ia.confianza})`);\nif (!hayLugar) motivos.push(`Sin lugar: ${ocupacion} + ${d.personas} supera ${capacidad}`);\n\nconst requiereRevision = motivos.length > 0;\n\nreturn [\n  {\n    json: {\n      numero: cuerpo.numero,\n      recibido: cuerpo.recibido,\n      nombre: d.nombre,\n      telefono: d.telefono,\n      email: d.email,\n      fecha: d.fecha,\n      fechaLabel: d.fechaLabel,\n      hora: d.hora,\n      fechaHora: d.fechaHora,\n      personas: d.personas,\n      zonaLabel: d.zonaLabel,\n      comentario: d.comentario,\n\n      duplicada,\n      requiere_revision: requiereRevision,\n      estado: requiereRevision ? 'Esperando_Aprobacion' : 'Confirmada',\n      motivo_revision: motivos.join(' · ') || null,\n      confianza: ia.confianza ?? 0,\n      politica_relacionada: ia.viola_politica ? ia.politica_relacionada : null,\n\n      capacidad,\n      ocupacion,\n      hay_lugar: hayLugar,\n      politicas_consultadas: politicasConsultadas,\n    },\n  },\n];\n"
+        "jsCode": "// Nodo Code \"Decidir\".\n//\n// Junta las cuatro fuentes y decide la ruta. Cada una se referencia por\n// nombre de nodo a proposito: el $json que llega aca es el de Claude, no\n// el de la reserva.\n//\n// La ocupacion NO sale de un campo Ocupacion en Turnos: se calcula\n// sumando las personas de las reservas ya confirmadas de esa fecha. Un\n// contador guardado se desincroniza en cuanto alguien cancela o carga una\n// reserva a mano.\n\nconst cuerpo = $('Reserva nueva').first().json.body;\nconst d = cuerpo.datos;\n\n// El JSON NO esta en content[0]: claude-opus-5 razona por defecto, asi que\n// el primer bloque suele ser de tipo \"thinking\" y el texto viene despues.\n// Hay que buscar el bloque de texto, no asumir la posicion.\nlet ia;\nlet iaFallo = false;\ntry {\n  const bloques = $('Claude - Analizar').first().json.content || [];\n  const texto = bloques.find((b) => b.type === 'text')?.text;\n  ia = JSON.parse(texto);\n} catch {\n  iaFallo = true;\n  ia = {\n    requiere_revision_humana: true,\n    motivo_revision: 'No se pudo analizar la reserva automaticamente',\n    confianza: 0,\n    viola_politica: false,\n    politica_relacionada: null,\n  };\n}\n\n// Igual que en Preparar analisis: n8n a veces entrega { results: [...] } en\n// un item y a veces un item por pagina. Se aceptan las dos formas.\nconst paginasDe = (nodo) => {\n  const salida = [];\n  for (const item of $(nodo).all()) {\n    const j = item.json || {};\n    if (Array.isArray(j.results)) salida.push(...j.results);\n    else if (Array.isArray(j.body?.results)) salida.push(...j.body.results);\n    else if (j.properties) salida.push(j);\n  }\n  return salida;\n};\n\nconst turnos = paginasDe('Notion - Turno de la fecha');\nconst confirmadas = paginasDe('Notion - Reservas confirmadas');\n\nconst turnoPagina = turnos[0] ?? null;\nconst capacidad = turnoPagina?.properties?.Capacidad_Total?.number ?? null;\nconst ocupacion = confirmadas.reduce((suma, p) => suma + (p.properties?.Personas?.number || 0), 0);\n// Sin turno cargado para esa fecha no se bloquea: se asume que hay lugar y\n// que el encargado lo revisara si hace falta.\nconst hayLugar = capacidad === null ? true : ocupacion + d.personas <= capacidad;\n\n// Mismo telefono, misma fecha y ya confirmada: es la misma reserva mandada\n// dos veces, no una nueva.\nconst telefono = String(d.telefono || '').replace(/\\D/g, '');\nconst duplicada = confirmadas.some((p) => {\n  const otro = p.properties?.Telefono?.rich_text?.[0]?.plain_text || '';\n  return String(otro).replace(/\\D/g, '') === telefono;\n});\n\n// Cuantas politicas vio realmente el analisis. Si son cero, Claude\n// clasifico a ciegas: eso es una anomalia del sistema, no algo de la\n// reserva, y tiene que quedar registrado en vez de disfrazarse de\n// \"confianza baja\".\nconst politicasConsultadas = $('Preparar analisis').first().json.politicas ?? 0;\nconst formaEntrada = $('Preparar analisis').first().json.forma_entrada ?? 'desconocida';\n\nconst motivos = [];\nif (politicasConsultadas === 0) {\n  motivos.push(`ATENCION: el analisis corrio sin politicas cargadas (forma recibida: ${formaEntrada})`);\n}\nif (ia.requiere_revision_humana) motivos.push(ia.motivo_revision || 'La IA pidio revision');\nif (ia.viola_politica) motivos.push(`Politica: ${ia.politica_relacionada || 'sin especificar'}`);\nif (d.personas > 10) motivos.push(`Grupo grande (${d.personas} personas)`);\n// Si la IA fallo, la confianza es 0 por definicion: agregar \"confianza\n// baja\" al motivo solo confunde a quien lee el aviso.\nif (!iaFallo && (ia.confianza ?? 0) < 0.7) motivos.push(`Confianza baja (${ia.confianza})`);\nif (!hayLugar) motivos.push(`Sin lugar: ${ocupacion} + ${d.personas} supera ${capacidad}`);\n\nconst requiereRevision = motivos.length > 0;\n\nreturn [\n  {\n    json: {\n      numero: cuerpo.numero,\n      recibido: cuerpo.recibido,\n      nombre: d.nombre,\n      telefono: d.telefono,\n      email: d.email,\n      fecha: d.fecha,\n      fechaLabel: d.fechaLabel,\n      hora: d.hora,\n      fechaHora: d.fechaHora,\n      personas: d.personas,\n      zonaLabel: d.zonaLabel,\n      comentario: d.comentario,\n\n      duplicada,\n      requiere_revision: requiereRevision,\n      estado: requiereRevision ? 'Esperando_Aprobacion' : 'Confirmada',\n      motivo_revision: motivos.join(' · ') || null,\n      confianza: ia.confianza ?? 0,\n      politica_relacionada: ia.viola_politica ? ia.politica_relacionada : null,\n\n      capacidad,\n      ocupacion,\n      hay_lugar: hayLugar,\n      politicas_consultadas: politicasConsultadas,\n      // Para vincular la reserva con su turno al crearla (relacion en Notion).\n      turno_id: turnoPagina?.id ?? null,\n      // Lo lee la rama que registra el error: si la IA no contesto, queda\n      // constancia en la base Errores en vez de perderse.\n      ia_fallo: iaFallo,\n    },\n  },\n];\n"
       },
       "name": "Decidir",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1540,
+        1760,
         0
       ],
       "notes": "Combina reserva + IA + ocupacion y elige la ruta.",
-      "id": "b2000000-0000-4000-8000-000000000107"
+      "id": "b2000000-0000-4000-8000-000000000108"
     },
     {
       "parameters": {
@@ -231,10 +245,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        1760,
+        1980,
         0
       ],
-      "id": "b2000000-0000-4000-8000-000000000108"
+      "id": "b2000000-0000-4000-8000-000000000109"
     },
     {
       "parameters": {},
@@ -242,11 +256,11 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        1980,
+        2200,
         0
       ],
       "notes": "Mismo telefono y misma fecha con reserva ya confirmada.",
-      "id": "b2000000-0000-4000-8000-000000000109"
+      "id": "b2000000-0000-4000-8000-000000000110"
     },
     {
       "parameters": {
@@ -265,17 +279,17 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({\n  parent: { database_id: '3c119da0dec98087b386ed1a5e21a39e' },\n  properties: {\n    Nombre_Cliente: { title: [{ text: { content: $json.nombre } }] },\n    Numero: { number: $json.numero },\n    Estado: { select: { name: $json.estado } },\n    Canal_Origen: { select: { name: 'Web' } },\n    Telefono: { rich_text: [{ text: { content: $json.telefono } }] },\n    Email: { email: $json.email || null },\n    Fecha: { date: { start: $json.fechaHora } },\n    Hora: { rich_text: [{ text: { content: $json.hora } }] },\n    Personas: { number: $json.personas },\n    Zona: { select: { name: $json.zonaLabel } },\n    Observaciones: { rich_text: [{ text: { content: $json.comentario || '' } }] },\n    Confianza_IA: { number: $json.confianza },\n    Requiere_Revision: { checkbox: $json.requiere_revision },\n    Motivo_Revision: { rich_text: [{ text: { content: $json.motivo_revision || '' } }] },\n    Politica_Relacionada: { rich_text: [{ text: { content: $json.politica_relacionada || '' } }] }\n  }\n}) }}",
+        "jsonBody": "={{ JSON.stringify({\n  parent: { database_id: $('Configuracion').first().json.bases.reservas },\n  properties: {\n    Nombre_Cliente: { title: [{ text: { content: $json.nombre } }] },\n    Numero: { number: $json.numero },\n    Estado: { select: { name: $json.estado } },\n    Canal_Origen: { select: { name: 'Web' } },\n    Telefono: { rich_text: [{ text: { content: $json.telefono } }] },\n    Email: { email: $json.email || null },\n    Fecha: { date: { start: $json.fechaHora } },\n    Hora: { rich_text: [{ text: { content: $json.hora } }] },\n    Personas: { number: $json.personas },\n    Zona: { select: { name: $json.zonaLabel } },\n    Turno: $json.turno_id ? { relation: [{ id: $json.turno_id }] } : { relation: [] },\n    Observaciones: { rich_text: [{ text: { content: $json.comentario || '' } }] },\n    Confianza_IA: { number: $json.confianza },\n    Requiere_Revision: { checkbox: $json.requiere_revision },\n    Motivo_Revision: { rich_text: [{ text: { content: $json.motivo_revision || '' } }] },\n    Politica_Relacionada: { rich_text: [{ text: { content: $json.politica_relacionada || '' } }] }\n  }\n}) }}",
         "options": {}
       },
       "name": "Notion - Crear reserva",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2200,
+        2420,
         0
       ],
-      "id": "b2000000-0000-4000-8000-000000000110"
+      "id": "b2000000-0000-4000-8000-000000000111"
     },
     {
       "parameters": {
@@ -285,10 +299,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2420,
+        2640,
         0
       ],
-      "id": "b2000000-0000-4000-8000-000000000111"
+      "id": "b2000000-0000-4000-8000-000000000112"
     },
     {
       "parameters": {
@@ -303,10 +317,10 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        2640,
+        2860,
         0
       ],
-      "id": "b2000000-0000-4000-8000-000000000112"
+      "id": "b2000000-0000-4000-8000-000000000113"
     },
     {
       "parameters": {
@@ -316,11 +330,88 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2860,
+        3080,
         0
       ],
       "notes": "El nodo de Telegram devuelve su propia respuesta: sin esto, los datos de la reserva no llegan al resto del flujo.",
-      "id": "b2000000-0000-4000-8000-000000000113"
+      "id": "b2000000-0000-4000-8000-000000000114"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "fallo",
+              "leftValue": "={{ $json.ia_fallo }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Fallo la IA",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        3300,
+        0
+      ],
+      "notes": "Rama paralela: la reserva sigue su curso igual, esto solo deja constancia.",
+      "id": "b2000000-0000-4000-8000-000000000115"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Nodo Code \"Armar error\".\n//\n// Deja registro en la base Errores cuando el analisis de IA no se pudo\n// hacer. La reserva NO se pierde —Decidir la manda a revision humana— pero\n// sin este registro el fallo era invisible: el workflow terminaba en verde\n// y nadie se enteraba de que Claude no habia contestado.\n//\n// Se corre despues de crear la reserva a proposito, para poder vincular el\n// error con ella (Reserva_Relacionada) en vez de dejar un registro suelto.\n\nconst r = $('Mensaje al dueno').first().json;\nconst bases = $('Configuracion').first().json.bases;\n\n// Lo minimo para poder reproducir el caso, sin volcar la reserva entera:\n// telefono y email no hacen falta para depurar por que fallo la IA.\nconst payload = {\n  numero: r.numero,\n  fecha: r.fecha,\n  hora: r.hora,\n  personas: r.personas,\n  zona: r.zonaLabel,\n  comentario: r.comentario,\n  politicas_consultadas: r.politicas_consultadas,\n};\n\n// rich_text corta en 2000 caracteres.\nconst texto = JSON.stringify(payload).slice(0, 1900);\n\nconst peticion = {\n  parent: { database_id: bases.errores },\n  properties: {\n    Error_numero: {\n      title: [{ text: { content: `Reserva #${r.numero} - fallo el analisis de IA` } }],\n    },\n    Tipo_Error: { select: { name: 'API_IA_Fallo' } },\n    Payload_Original: { rich_text: [{ text: { content: texto } }] },\n    Resuelto: { checkbox: false },\n    Reserva_Relacionada: { relation: [{ id: r.reserva_id }] },\n  },\n};\n\nreturn [{ json: { peticion, numero: r.numero } }];\n"
+      },
+      "name": "Armar error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3520,
+        0
+      ],
+      "id": "b2000000-0000-4000-8000-000000000116"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.notion.com/v1/pages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "notionApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Notion-Version",
+              "value": "2022-06-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.peticion) }}",
+        "options": {}
+      },
+      "name": "Notion - Registrar error",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3740,
+        0
+      ],
+      "notes": "Deja el fallo en la base Errores, vinculado a la reserva que lo genero.",
+      "id": "b2000000-0000-4000-8000-000000000117"
     },
     {
       "parameters": {
@@ -350,10 +441,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        3080,
+        3960,
         0
       ],
-      "id": "b2000000-0000-4000-8000-000000000114"
+      "id": "b2000000-0000-4000-8000-000000000118"
     },
     {
       "parameters": {
@@ -383,11 +474,11 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        3300,
+        4180,
         0
       ],
       "notes": "Sin email la confirmacion queda por telefono; la reserva no se bloquea.",
-      "id": "b2000000-0000-4000-8000-000000000115"
+      "id": "b2000000-0000-4000-8000-000000000119"
     },
     {
       "parameters": {
@@ -400,11 +491,11 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
       "position": [
-        3520,
+        4400,
         0
       ],
       "onError": "continueRegularOutput",
-      "id": "b2000000-0000-4000-8000-000000000116"
+      "id": "b2000000-0000-4000-8000-000000000120"
     },
     {
       "parameters": {
@@ -415,11 +506,11 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        3740,
+        4620,
         0
       ],
       "webhookId": "b2000000-0000-4000-8000-000000000002",
-      "id": "b2000000-0000-4000-8000-000000000117"
+      "id": "b2000000-0000-4000-8000-000000000121"
     },
     {
       "parameters": {
@@ -442,23 +533,23 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3960,
+        4840,
         0
       ],
-      "id": "b2000000-0000-4000-8000-000000000118"
+      "id": "b2000000-0000-4000-8000-000000000122"
     },
     {
       "parameters": {
-        "jsCode": "// Nodo Code \"Evaluar aprobacion\".\n//\n// Entrada: la pagina releida desde Notion. Decide si el encargado ya\n// respondio o si hay que seguir esperando.\n//\n// El estado se lee de properties.Estado.select.name, que es la forma que\n// devuelve la API de Notion. Leerlo de page['Estado'] devuelve undefined\n// y el loop no sale nunca hasta vencer.\n\nconst original = $('Mensaje al dueno').first().json;\nconst pagina = $input.first().json;\n\nconst estado = pagina.properties?.Estado?.select?.name || 'Esperando_Aprobacion';\n\nconst creado = pagina.created_time || original.recibido;\nconst horas = (Date.now() - new Date(creado).getTime()) / (1000 * 60 * 60);\nconst vencida = horas >= 4;\n\nreturn [\n  {\n    json: {\n      ...original,\n      estado_actual: estado,\n      vencida,\n      horas_esperando: Math.round(horas * 100) / 100,\n    },\n  },\n];\n"
+        "jsCode": "// Nodo Code \"Evaluar aprobacion\".\n//\n// Entrada: la pagina releida desde Notion. Decide si el encargado ya\n// respondio o si hay que seguir esperando.\n//\n// El estado se lee de properties.Estado.select.name, que es la forma que\n// devuelve la API de Notion. Leerlo de page['Estado'] devuelve undefined\n// y el loop no sale nunca hasta vencer.\n\nconst original = $('Mensaje al dueno').first().json;\nconst pagina = $input.first().json;\n\nconst estado = pagina.properties?.Estado?.select?.name || 'Esperando_Aprobacion';\n\nconst creado = pagina.created_time || original.recibido;\nconst horas = (Date.now() - new Date(creado).getTime()) / (1000 * 60 * 60);\n// El limite sale de Configuracion, no escrito aca: es una regla de\n// negocio que el restaurante puede querer cambiar.\nconst limite = $('Configuracion').first().json.horasParaVencer ?? 4;\nconst vencida = horas >= limite;\n\nreturn [\n  {\n    json: {\n      ...original,\n      estado_actual: estado,\n      vencida,\n      horas_esperando: Math.round(horas * 100) / 100,\n      horas_limite: limite,\n    },\n  },\n];\n"
       },
       "name": "Evaluar aprobacion",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4180,
+        5060,
         0
       ],
-      "id": "b2000000-0000-4000-8000-000000000119"
+      "id": "b2000000-0000-4000-8000-000000000123"
     },
     {
       "parameters": {
@@ -497,10 +588,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        4400,
+        5280,
         0
       ],
-      "id": "b2000000-0000-4000-8000-000000000120"
+      "id": "b2000000-0000-4000-8000-000000000124"
     },
     {
       "parameters": {
@@ -560,11 +651,11 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
       "position": [
-        4620,
+        5500,
         0
       ],
       "notes": "Salida 0 Confirmada, salida 1 Rechazada, salida 2 (fallback) vencida.",
-      "id": "b2000000-0000-4000-8000-000000000121"
+      "id": "b2000000-0000-4000-8000-000000000125"
     },
     {
       "parameters": {
@@ -577,11 +668,11 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
       "position": [
-        4840,
+        5720,
         0
       ],
       "onError": "continueRegularOutput",
-      "id": "b2000000-0000-4000-8000-000000000122"
+      "id": "b2000000-0000-4000-8000-000000000126"
     },
     {
       "parameters": {
@@ -607,10 +698,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        5060,
+        5940,
         0
       ],
-      "id": "b2000000-0000-4000-8000-000000000123"
+      "id": "b2000000-0000-4000-8000-000000000127"
     },
     {
       "parameters": {
@@ -625,14 +716,25 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        5280,
+        6160,
         0
       ],
-      "id": "b2000000-0000-4000-8000-000000000124"
+      "id": "b2000000-0000-4000-8000-000000000128"
     }
   ],
   "connections": {
     "Reserva nueva": {
+      "main": [
+        [
+          {
+            "node": "Configuracion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configuracion": {
       "main": [
         [
           {
@@ -755,6 +857,34 @@
         [
           {
             "node": "Telegram - Avisar al dueno",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fallo la IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fallo la IA": {
+      "main": [
+        [
+          {
+            "node": "Armar error",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Armar error": {
+      "main": [
+        [
+          {
+            "node": "Notion - Registrar error",
             "type": "main",
             "index": 0
           }

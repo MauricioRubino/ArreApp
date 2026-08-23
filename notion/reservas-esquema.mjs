@@ -214,6 +214,59 @@ for (const [nombre, plan] of Object.entries(PLAN)) {
   }
 }
 
+// --- Relacion Turnos <-> Reservas --------------------------------------
+// Venia como single_property: existia del lado de Turnos pero no tenia
+// espejo en Reservas, asi que no habia forma de vincularlas al crear una
+// reserva sin hacer read-modify-write sobre el turno. Pasandola a
+// dual_property, una sola escritura desde Reservas llena los dos lados.
+{
+  const turnos = await leerBase(BASES.Turnos)
+  const rel = turnos.properties.Reservas_Vinculadas
+  console.log('')
+  console.log('■ Relacion Turnos.Reservas_Vinculadas')
+  if (rel?.relation?.type === 'dual_property') {
+    console.log('   = ya es bidireccional')
+  } else {
+    console.log('   · convertir single_property → dual_property')
+    if (aplicar) {
+      const r = await fetch(`https://api.notion.com/v1/databases/${BASES.Turnos}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({
+          properties: {
+            Reservas_Vinculadas: {
+              relation: { database_id: BASES.Reservas, type: 'dual_property', dual_property: {} },
+            },
+          },
+        }),
+      })
+      const b = await r.json()
+      if (!r.ok) console.error(`   ✗ ${b.code}: ${b.message}`)
+      else console.log('   ✓ convertida')
+    }
+  }
+
+  // Notion le pone al espejo un nombre automatico feo
+  // ("Related to Turnos (...)"): se renombra a Turno.
+  const reservas = await leerBase(BASES.Reservas)
+  const espejo = Object.entries(reservas.properties).find(
+    ([n, d]) => d.type === 'relation' && n !== 'Turno' && n.startsWith('Related to')
+  )
+  if (espejo) {
+    console.log(`   · renombrar "${espejo[0]}" → "Turno"`)
+    if (aplicar) {
+      const r = await fetch(`https://api.notion.com/v1/databases/${BASES.Reservas}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ properties: { [espejo[0]]: { name: 'Turno' } } }),
+      })
+      console.log(r.ok ? '   ✓ renombrada' : '   ✗ no se pudo renombrar')
+    }
+  } else if (reservas.properties.Turno) {
+    console.log('   = el espejo ya se llama "Turno"')
+  }
+}
+
 console.log('')
 if (!aplicar) {
   console.log('Simulación. Volvé a correrlo con --aplicar para hacer los cambios.')
