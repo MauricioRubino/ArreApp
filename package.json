@@ -16,7 +16,8 @@
     "telegram:chatid": "node --use-system-ca n8n/telegram-chat-id.mjs",
     "n8n:generar": "node n8n/generar-workflow.mjs && node n8n/generar-workflow-reservas.mjs",
     "notion:kpis": "node --use-system-ca notion/kpis.mjs",
-    "docs:pdf": "node -e \"const{execFileSync}=require('child_process');const fs=require('fs');const p=['C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe','C:/Program Files/Microsoft/Edge/Application/msedge.exe','C:/Program Files/Google/Chrome/Application/chrome.exe'].find(fs.existsSync);if(!p)throw new Error('no se encontro Edge ni Chrome');execFileSync(p,['--headless','--disable-gpu','--no-pdf-header-footer','--print-to-pdf='+process.cwd()+'/Entrega Final - Ecosistema de Automatización IA Autónomo para Negocios/entrega-final.pdf','file:///'+process.cwd().replace(/\\\\/g,'/')+'/Entrega Final - Ecosistema de Automatización IA Autónomo para Negocios/entrega-final.html']);console.log('PDF regenerado')\""
+    "docs:pdf": "node -e \"const{execFileSync}=require('child_process');const fs=require('fs');const p=['C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe','C:/Program Files/Microsoft/Edge/Application/msedge.exe','C:/Program Files/Google/Chrome/Application/chrome.exe'].find(fs.existsSync);if(!p)throw new Error('no se encontro Edge ni Chrome');execFileSync(p,['--headless','--disable-gpu','--no-pdf-header-footer','--print-to-pdf='+process.cwd()+'/Entrega Final - Ecosistema de Automatización IA Autónomo para Negocios/entrega-final.pdf','file:///'+process.cwd().replace(/\\\\/g,'/')+'/Entrega Final - Ecosistema de Automatización IA Autónomo para Negocios/entrega-final.html']);console.log('PDF regenerado')\"",
+    "video:placas": "node video-codercup/generar-placas.mjs"
   },
   "dependencies": {
     "@upstash/redis": "^1.38.0",
