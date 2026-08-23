@@ -138,31 +138,28 @@ const TELEGRAM_VENCIDA =
 
 const nodes = [
   {
-    parameters: { httpMethod: 'POST', path: 'arrecife-reservas', options: {} },
+    parameters: {
+      httpMethod: 'POST',
+      path: 'arrecife-reservas',
+      // El secreto vive en una credencial Header Auth, no adentro del
+      // workflow: asi no se pierde al reimportar y no viaja en el JSON que
+      // se sube al repositorio. n8n rechaza el pedido antes de ejecutar
+      // nada si el header no coincide.
+      authentication: 'headerAuth',
+      options: {},
+    },
     name: 'Reserva nueva',
     type: 'n8n-nodes-base.webhook',
     typeVersion: 2,
     position: pos(),
     webhookId: 'b2000000-0000-4000-8000-000000000001',
-    notes: 'La URL de produccion es el N8N_RESERVAS_WEBHOOK_URL que va en Vercel.',
+    notes: 'Credencial Header Auth: Name = X-Arrecife-Secret, Value = el N8N_SECRET de Vercel.',
   },
 
   codeNode(
     'Configuracion',
     'configuracion.js',
-    'Unico lugar con los IDs de las bases y el secreto. El resto los referencia desde aca.'
-  ),
-
-  ifNode(
-    'Secreto valido',
-    [
-      cond(
-        'secreto',
-        "={{ $('Reserva nueva').first().json.headers['x-arrecife-secret'] }}",
-        `={{ ${CFG}.secreto }}`
-      ),
-    ],
-    'El webhook es publico: sin este chequeo cualquiera carga reservas falsas.'
+    'Unico lugar con los IDs de las bases y el rango de fechas. El secreto va en la credencial del webhook.'
   ),
 
   notionHttp(
@@ -241,7 +238,7 @@ const nodes = [
 
   {
     parameters: {
-      chatId: 'PEGA-ACA-TU-CHAT-ID',
+      chatId: `={{ ${CFG}.chatId }}`,
       text: '={{ $json.mensaje }}',
       additionalFields: { appendAttribution: false, parse_mode: 'HTML' },
     },
@@ -366,7 +363,7 @@ const nodes = [
 
   {
     parameters: {
-      chatId: 'PEGA-ACA-TU-CHAT-ID',
+      chatId: `={{ ${CFG}.chatId }}`,
       text: TELEGRAM_VENCIDA,
       additionalFields: { appendAttribution: false, parse_mode: 'HTML' },
     },
@@ -388,8 +385,7 @@ const salida = (nodo, ...destinos) => ({
 
 const connections = {
   ...salida('Reserva nueva', 'Configuracion'),
-  ...salida('Configuracion', 'Secreto valido'),
-  ...salida('Secreto valido', 'Notion - Politicas activas', null),
+  ...salida('Configuracion', 'Notion - Politicas activas'),
   ...salida('Notion - Politicas activas', 'Preparar analisis'),
   ...salida('Preparar analisis', 'Claude - Analizar'),
   ...salida('Claude - Analizar', 'Notion - Turno de la fecha'),

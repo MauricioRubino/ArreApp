@@ -1,6 +1,11 @@
 // Nodo Code "Configuracion".
 //
-// Unico lugar del workflow donde viven los identificadores. Todos los nodos
+// Unico lugar del workflow donde viven los identificadores.
+//
+// El secreto del webhook NO esta aca: vive en una credencial Header Auth
+// del nodo Reserva nueva. Tenerlo en el codigo significaba que cada
+// reimportacion del workflow lo pisaba con el placeholder, y ademas viajaba
+// en el JSON que se sube al repositorio. Todos los nodos
 // que hablan con Notion arman su URL desde aca, en vez de tener el ID de la
 // base escrito adentro: si una base se muda o se duplica para un ambiente de
 // prueba, se cambia en un solo lugar.
@@ -50,9 +55,10 @@ return [
     json: {
       bases,
       rangoDia,
-      // Se compara contra el header que manda la app. Ponerlo aca y no en el
-      // nodo IF permite rotarlo sin tocar la logica del flujo.
-      secreto: leerEnv('ARRECIFE_SECRET', 'PEGA-ACA-TU-N8N-SECRET'),
+      // Destinatario de los avisos. Al reimportar el workflow los nodos
+      // vuelven al valor por defecto, asi que tenerlo en un solo lugar
+      // reduce a uno los nodos que hay que retocar.
+      chatId: leerEnv('ARRECIFE_CHAT_ID', 'PEGA-ACA-TU-CHAT-ID'),
       // Horas que espera una reserva en revision antes de vencer.
       horasParaVencer: Number(leerEnv('ARRECIFE_HORAS_VENCIMIENTO', 4)),
     },

@@ -5,6 +5,7 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "arrecife-pedidos",
+        "authentication": "headerAuth",
         "options": {}
       },
       "id": "a1000000-0000-4000-8000-000000000001",
@@ -17,40 +18,6 @@
       ],
       "webhookId": "a1000000-0000-4000-8000-000000000001",
       "notes": "La URL de produccion de este nodo es el N8N_WEBHOOK_URL que va en Vercel."
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 2
-          },
-          "conditions": [
-            {
-              "id": "secreto",
-              "leftValue": "={{ $json.headers['x-arrecife-secret'] }}",
-              "rightValue": "PEGA-ACA-TU-N8N-SECRET",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "a1000000-0000-4000-8000-000000000002",
-      "name": "Secreto valido",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        220,
-        0
-      ],
-      "notes": "El webhook es una URL publica: sin este chequeo cualquiera le manda pedidos falsos al dueno."
     },
     {
       "parameters": {

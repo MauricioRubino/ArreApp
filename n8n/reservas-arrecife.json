@@ -5,6 +5,7 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "arrecife-reservas",
+        "authentication": "headerAuth",
         "options": {}
       },
       "name": "Reserva nueva",
@@ -15,12 +16,12 @@
         0
       ],
       "webhookId": "b2000000-0000-4000-8000-000000000001",
-      "notes": "La URL de produccion es el N8N_RESERVAS_WEBHOOK_URL que va en Vercel.",
+      "notes": "Credencial Header Auth: Name = X-Arrecife-Secret, Value = el N8N_SECRET de Vercel.",
       "id": "b2000000-0000-4000-8000-000000000100"
     },
     {
       "parameters": {
-        "jsCode": "// Nodo Code \"Configuracion\".\n//\n// Unico lugar del workflow donde viven los identificadores. Todos los nodos\n// que hablan con Notion arman su URL desde aca, en vez de tener el ID de la\n// base escrito adentro: si una base se muda o se duplica para un ambiente de\n// prueba, se cambia en un solo lugar.\n//\n// Los valores se leen primero de las variables de entorno de n8n y recien\n// despues del literal, asi la misma exportacion del workflow sirve para\n// produccion y para pruebas sin editar nodos. El acceso a $env puede estar\n// bloqueado segun la instancia, por eso va protegido.\n\nconst leerEnv = (clave, porDefecto) => {\n  try {\n    return $env[clave] || porDefecto;\n  } catch {\n    return porDefecto;\n  }\n};\n\nconst bases = {\n  politicas: leerEnv('ARRECIFE_DB_POLITICAS', '3c119da0dec980be8594c3080b55c1d6'),\n  turnos: leerEnv('ARRECIFE_DB_TURNOS', '3c119da0dec980748fbad1f52292f811'),\n  reservas: leerEnv('ARRECIFE_DB_RESERVAS', '3c119da0dec98087b386ed1a5e21a39e'),\n  errores: leerEnv('ARRECIFE_DB_ERRORES', '3c119da0dec98097b4d8c21f9f9fc137'),\n};\n\n// Rango del dia de la reserva, en hora de Montevideo.\n//\n// Notion compara fechas en UTC: una reserva de las 21:00 -03:00 queda\n// guardada como el dia SIGUIENTE en UTC, asi que filtrar por\n// { equals: \"2028-04-22\" } no devuelve ninguna reserva de cena. Y el turno\n// de cena va de 19:30 a 00:00, o sea casi todas. Con eso roto, la ocupacion\n// daba siempre 0 y los duplicados de noche no se detectaban nunca.\n//\n// Por eso se filtra por rango con el offset explicito en vez de por\n// igualdad de fecha.\nconst fechaPedida = $('Reserva nueva').first().json.body.datos.fecha;\nconst siguiente = new Date(new Date(`${fechaPedida}T12:00:00Z`).getTime() + 86400000)\n  .toISOString()\n  .slice(0, 10);\n\nconst rangoDia = {\n  desde: `${fechaPedida}T00:00:00-03:00`,\n  hasta: `${siguiente}T00:00:00-03:00`,\n};\n\nreturn [\n  {\n    json: {\n      bases,\n      rangoDia,\n      // Se compara contra el header que manda la app. Ponerlo aca y no en el\n      // nodo IF permite rotarlo sin tocar la logica del flujo.\n      secreto: leerEnv('ARRECIFE_SECRET', 'PEGA-ACA-TU-N8N-SECRET'),\n      // Horas que espera una reserva en revision antes de vencer.\n      horasParaVencer: Number(leerEnv('ARRECIFE_HORAS_VENCIMIENTO', 4)),\n    },\n  },\n];\n"
+        "jsCode": "// Nodo Code \"Configuracion\".\n//\n// Unico lugar del workflow donde viven los identificadores.\n//\n// El secreto del webhook NO esta aca: vive en una credencial Header Auth\n// del nodo Reserva nueva. Tenerlo en el codigo significaba que cada\n// reimportacion del workflow lo pisaba con el placeholder, y ademas viajaba\n// en el JSON que se sube al repositorio. Todos los nodos\n// que hablan con Notion arman su URL desde aca, en vez de tener el ID de la\n// base escrito adentro: si una base se muda o se duplica para un ambiente de\n// prueba, se cambia en un solo lugar.\n//\n// Los valores se leen primero de las variables de entorno de n8n y recien\n// despues del literal, asi la misma exportacion del workflow sirve para\n// produccion y para pruebas sin editar nodos. El acceso a $env puede estar\n// bloqueado segun la instancia, por eso va protegido.\n\nconst leerEnv = (clave, porDefecto) => {\n  try {\n    return $env[clave] || porDefecto;\n  } catch {\n    return porDefecto;\n  }\n};\n\nconst bases = {\n  politicas: leerEnv('ARRECIFE_DB_POLITICAS', '3c119da0dec980be8594c3080b55c1d6'),\n  turnos: leerEnv('ARRECIFE_DB_TURNOS', '3c119da0dec980748fbad1f52292f811'),\n  reservas: leerEnv('ARRECIFE_DB_RESERVAS', '3c119da0dec98087b386ed1a5e21a39e'),\n  errores: leerEnv('ARRECIFE_DB_ERRORES', '3c119da0dec98097b4d8c21f9f9fc137'),\n};\n\n// Rango del dia de la reserva, en hora de Montevideo.\n//\n// Notion compara fechas en UTC: una reserva de las 21:00 -03:00 queda\n// guardada como el dia SIGUIENTE en UTC, asi que filtrar por\n// { equals: \"2028-04-22\" } no devuelve ninguna reserva de cena. Y el turno\n// de cena va de 19:30 a 00:00, o sea casi todas. Con eso roto, la ocupacion\n// daba siempre 0 y los duplicados de noche no se detectaban nunca.\n//\n// Por eso se filtra por rango con el offset explicito en vez de por\n// igualdad de fecha.\nconst fechaPedida = $('Reserva nueva').first().json.body.datos.fecha;\nconst siguiente = new Date(new Date(`${fechaPedida}T12:00:00Z`).getTime() + 86400000)\n  .toISOString()\n  .slice(0, 10);\n\nconst rangoDia = {\n  desde: `${fechaPedida}T00:00:00-03:00`,\n  hasta: `${siguiente}T00:00:00-03:00`,\n};\n\nreturn [\n  {\n    json: {\n      bases,\n      rangoDia,\n      // Destinatario de los avisos. Al reimportar el workflow los nodos\n      // vuelven al valor por defecto, asi que tenerlo en un solo lugar\n      // reduce a uno los nodos que hay que retocar.\n      chatId: leerEnv('ARRECIFE_CHAT_ID', 'PEGA-ACA-TU-CHAT-ID'),\n      // Horas que espera una reserva en revision antes de vencer.\n      horasParaVencer: Number(leerEnv('ARRECIFE_HORAS_VENCIMIENTO', 4)),\n    },\n  },\n];\n"
       },
       "name": "Configuracion",
       "type": "n8n-nodes-base.code",
@@ -29,42 +30,8 @@
         220,
         0
       ],
-      "notes": "Unico lugar con los IDs de las bases y el secreto. El resto los referencia desde aca.",
+      "notes": "Unico lugar con los IDs de las bases y el rango de fechas. El secreto va en la credencial del webhook.",
       "id": "b2000000-0000-4000-8000-000000000101"
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 2
-          },
-          "conditions": [
-            {
-              "id": "secreto",
-              "leftValue": "={{ $('Reserva nueva').first().json.headers['x-arrecife-secret'] }}",
-              "rightValue": "={{ $('Configuracion').first().json.secreto }}",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "name": "Secreto valido",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        440,
-        0
-      ],
-      "notes": "El webhook es publico: sin este chequeo cualquiera carga reservas falsas.",
-      "id": "b2000000-0000-4000-8000-000000000102"
     },
     {
       "parameters": {
@@ -90,10 +57,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        660,
+        440,
         0
       ],
-      "id": "b2000000-0000-4000-8000-000000000103"
+      "id": "b2000000-0000-4000-8000-000000000102"
     },
     {
       "parameters": {
@@ -103,11 +70,11 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        880,
+        660,
         0
       ],
       "notes": "Arma el contexto RAG y el cuerpo completo de la llamada a Claude.",
-      "id": "b2000000-0000-4000-8000-000000000104"
+      "id": "b2000000-0000-4000-8000-000000000103"
     },
     {
       "parameters": {
@@ -137,12 +104,12 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1100,
+        880,
         0
       ],
       "onError": "continueRegularOutput",
       "notes": "Credencial Header Auth con x-api-key. Si falla, Decidir manda la reserva a revision humana.",
-      "id": "b2000000-0000-4000-8000-000000000105"
+      "id": "b2000000-0000-4000-8000-000000000104"
     },
     {
       "parameters": {
@@ -168,10 +135,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1320,
+        1100,
         0
       ],
-      "id": "b2000000-0000-4000-8000-000000000106"
+      "id": "b2000000-0000-4000-8000-000000000105"
     },
     {
       "parameters": {
@@ -197,11 +164,11 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1540,
+        1320,
         0
       ],
       "notes": "Sirve para dos cosas: calcular la ocupacion del dia y detectar duplicados.",
-      "id": "b2000000-0000-4000-8000-000000000107"
+      "id": "b2000000-0000-4000-8000-000000000106"
     },
     {
       "parameters": {
@@ -211,11 +178,11 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1760,
+        1540,
         0
       ],
       "notes": "Combina reserva + IA + ocupacion y elige la ruta.",
-      "id": "b2000000-0000-4000-8000-000000000108"
+      "id": "b2000000-0000-4000-8000-000000000107"
     },
     {
       "parameters": {
@@ -245,10 +212,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        1980,
+        1760,
         0
       ],
-      "id": "b2000000-0000-4000-8000-000000000109"
+      "id": "b2000000-0000-4000-8000-000000000108"
     },
     {
       "parameters": {},
@@ -256,11 +223,11 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        2200,
+        1980,
         0
       ],
       "notes": "Mismo telefono y misma fecha con reserva ya confirmada.",
-      "id": "b2000000-0000-4000-8000-000000000110"
+      "id": "b2000000-0000-4000-8000-000000000109"
     },
     {
       "parameters": {
@@ -286,10 +253,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2420,
+        2200,
         0
       ],
-      "id": "b2000000-0000-4000-8000-000000000111"
+      "id": "b2000000-0000-4000-8000-000000000110"
     },
     {
       "parameters": {
@@ -299,14 +266,14 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2640,
+        2420,
         0
       ],
-      "id": "b2000000-0000-4000-8000-000000000112"
+      "id": "b2000000-0000-4000-8000-000000000111"
     },
     {
       "parameters": {
-        "chatId": "PEGA-ACA-TU-CHAT-ID",
+        "chatId": "={{ $('Configuracion').first().json.chatId }}",
         "text": "={{ $json.mensaje }}",
         "additionalFields": {
           "appendAttribution": false,
@@ -317,10 +284,10 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        2860,
+        2640,
         0
       ],
-      "id": "b2000000-0000-4000-8000-000000000113"
+      "id": "b2000000-0000-4000-8000-000000000112"
     },
     {
       "parameters": {
@@ -330,11 +297,11 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3080,
+        2860,
         0
       ],
       "notes": "El nodo de Telegram devuelve su propia respuesta: sin esto, los datos de la reserva no llegan al resto del flujo.",
-      "id": "b2000000-0000-4000-8000-000000000114"
+      "id": "b2000000-0000-4000-8000-000000000113"
     },
     {
       "parameters": {
@@ -364,11 +331,11 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        3300,
+        3080,
         0
       ],
       "notes": "Rama paralela: la reserva sigue su curso igual, esto solo deja constancia.",
-      "id": "b2000000-0000-4000-8000-000000000115"
+      "id": "b2000000-0000-4000-8000-000000000114"
     },
     {
       "parameters": {
@@ -378,10 +345,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3520,
+        3300,
         0
       ],
-      "id": "b2000000-0000-4000-8000-000000000116"
+      "id": "b2000000-0000-4000-8000-000000000115"
     },
     {
       "parameters": {
@@ -407,11 +374,11 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3740,
+        3520,
         0
       ],
       "notes": "Deja el fallo en la base Errores, vinculado a la reserva que lo genero.",
-      "id": "b2000000-0000-4000-8000-000000000117"
+      "id": "b2000000-0000-4000-8000-000000000116"
     },
     {
       "parameters": {
@@ -441,10 +408,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        3960,
+        3740,
         0
       ],
-      "id": "b2000000-0000-4000-8000-000000000118"
+      "id": "b2000000-0000-4000-8000-000000000117"
     },
     {
       "parameters": {
@@ -474,11 +441,11 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        4180,
+        3960,
         0
       ],
       "notes": "Sin email la confirmacion queda por telefono; la reserva no se bloquea.",
-      "id": "b2000000-0000-4000-8000-000000000119"
+      "id": "b2000000-0000-4000-8000-000000000118"
     },
     {
       "parameters": {
@@ -491,11 +458,11 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
       "position": [
-        4400,
+        4180,
         0
       ],
       "onError": "continueRegularOutput",
-      "id": "b2000000-0000-4000-8000-000000000120"
+      "id": "b2000000-0000-4000-8000-000000000119"
     },
     {
       "parameters": {
@@ -506,11 +473,11 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        4620,
+        4400,
         0
       ],
       "webhookId": "b2000000-0000-4000-8000-000000000002",
-      "id": "b2000000-0000-4000-8000-000000000121"
+      "id": "b2000000-0000-4000-8000-000000000120"
     },
     {
       "parameters": {
@@ -533,10 +500,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        4840,
+        4620,
         0
       ],
-      "id": "b2000000-0000-4000-8000-000000000122"
+      "id": "b2000000-0000-4000-8000-000000000121"
     },
     {
       "parameters": {
@@ -546,10 +513,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        5060,
+        4840,
         0
       ],
-      "id": "b2000000-0000-4000-8000-000000000123"
+      "id": "b2000000-0000-4000-8000-000000000122"
     },
     {
       "parameters": {
@@ -588,10 +555,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        5280,
+        5060,
         0
       ],
-      "id": "b2000000-0000-4000-8000-000000000124"
+      "id": "b2000000-0000-4000-8000-000000000123"
     },
     {
       "parameters": {
@@ -651,11 +618,11 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
       "position": [
-        5500,
+        5280,
         0
       ],
       "notes": "Salida 0 Confirmada, salida 1 Rechazada, salida 2 (fallback) vencida.",
-      "id": "b2000000-0000-4000-8000-000000000125"
+      "id": "b2000000-0000-4000-8000-000000000124"
     },
     {
       "parameters": {
@@ -668,11 +635,11 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
       "position": [
-        5720,
+        5500,
         0
       ],
       "onError": "continueRegularOutput",
-      "id": "b2000000-0000-4000-8000-000000000126"
+      "id": "b2000000-0000-4000-8000-000000000125"
     },
     {
       "parameters": {
@@ -698,14 +665,14 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        5940,
+        5720,
         0
       ],
-      "id": "b2000000-0000-4000-8000-000000000127"
+      "id": "b2000000-0000-4000-8000-000000000126"
     },
     {
       "parameters": {
-        "chatId": "PEGA-ACA-TU-CHAT-ID",
+        "chatId": "={{ $('Configuracion').first().json.chatId }}",
         "text": "=Reserva #{{ $json.numero }} sin respuesta hace mas de 4 horas, quedo marcada como Vencida.\n\n{{ $json.nombre }} - {{ $json.telefono }}\n{{ $json.fechaLabel }} a las {{ $json.hora }} - {{ $json.personas }} personas\n\nHay que contactar al cliente a mano.\n\n{{ $json.reserva_url }}",
         "additionalFields": {
           "appendAttribution": false,
@@ -716,10 +683,10 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        6160,
+        5940,
         0
       ],
-      "id": "b2000000-0000-4000-8000-000000000128"
+      "id": "b2000000-0000-4000-8000-000000000127"
     }
   ],
   "connections": {
@@ -738,23 +705,11 @@
       "main": [
         [
           {
-            "node": "Secreto valido",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Secreto valido": {
-      "main": [
-        [
-          {
             "node": "Notion - Politicas activas",
             "type": "main",
             "index": 0
           }
-        ],
-        []
+        ]
       ]
     },
     "Notion - Politicas activas": {

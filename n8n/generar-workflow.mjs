@@ -16,7 +16,15 @@ const workflow = {
   name: 'Arrecife — Pedido nuevo a Telegram',
   nodes: [
     {
-      parameters: { httpMethod: 'POST', path: 'arrecife-pedidos', options: {} },
+      parameters: {
+        httpMethod: 'POST',
+        path: 'arrecife-pedidos',
+        // El secreto va en una credencial Header Auth, no adentro del
+        // workflow: no se pierde al reimportar ni viaja en el JSON del
+        // repositorio, y n8n rechaza el pedido antes de ejecutar nada.
+        authentication: 'headerAuth',
+        options: {},
+      },
       id: 'a1000000-0000-4000-8000-000000000001',
       name: 'Pedido nuevo',
       type: 'n8n-nodes-base.webhook',
@@ -24,29 +32,6 @@ const workflow = {
       position: [0, 0],
       webhookId: 'a1000000-0000-4000-8000-000000000001',
       notes: 'La URL de produccion de este nodo es el N8N_WEBHOOK_URL que va en Vercel.',
-    },
-    {
-      parameters: {
-        conditions: {
-          options: { caseSensitive: true, leftValue: '', typeValidation: 'strict', version: 2 },
-          conditions: [
-            {
-              id: 'secreto',
-              leftValue: "={{ $json.headers['x-arrecife-secret'] }}",
-              rightValue: 'PEGA-ACA-TU-N8N-SECRET',
-              operator: { type: 'string', operation: 'equals' },
-            },
-          ],
-          combinator: 'and',
-        },
-        options: {},
-      },
-      id: 'a1000000-0000-4000-8000-000000000002',
-      name: 'Secreto valido',
-      type: 'n8n-nodes-base.if',
-      typeVersion: 2,
-      position: [220, 0],
-      notes: 'El webhook es una URL publica: sin este chequeo cualquiera le manda pedidos falsos al dueno.',
     },
     {
       parameters: { jsCode },
