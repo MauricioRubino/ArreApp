@@ -237,6 +237,12 @@ const nodes = [
     position: pos(),
   },
 
+  codeNode(
+    'Retomar datos',
+    'retomar-datos.js',
+    'El nodo de Telegram devuelve su propia respuesta: sin esto, los datos de la reserva no llegan al resto del flujo.'
+  ),
+
   ifNode('Requiere aprobacion', [cond('rev', '={{ $json.requiere_revision }}', true, 'boolean')]),
 
   ifNode(
@@ -365,7 +371,8 @@ const connections = {
   ...salida('Es duplicada', 'Duplicada descartada', 'Notion - Crear reserva'),
   ...salida('Notion - Crear reserva', 'Mensaje al dueno'),
   ...salida('Mensaje al dueno', 'Telegram - Avisar al dueno'),
-  ...salida('Telegram - Avisar al dueno', 'Requiere aprobacion'),
+  ...salida('Telegram - Avisar al dueno', 'Retomar datos'),
+  ...salida('Retomar datos', 'Requiere aprobacion'),
   ...salida('Requiere aprobacion', 'Esperar 5 min', 'Tiene email'),
   ...salida('Tiene email', 'Gmail - Confirmar al cliente', null),
   ...salida('Esperar 5 min', 'Notion - Releer reserva'),

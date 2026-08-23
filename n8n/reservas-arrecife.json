@@ -310,6 +310,20 @@
     },
     {
       "parameters": {
+        "jsCode": "// Nodo Code \"Retomar datos\".\n//\n// En n8n la salida de cada nodo es la entrada del siguiente, y el nodo de\n// Telegram devuelve la respuesta de SU API ({ ok, result: { message_id } }),\n// no los datos de la reserva. Sin este nodo, todo lo que viene despues\n// evalua $json sobre la respuesta de Telegram:\n//\n//   - \"Requiere aprobacion\" lee $json.requiere_revision -> undefined,\n//     asi que toda reserva se iba por la rama de confirmada y el loop de\n//     aprobacion no corria nunca;\n//   - \"Tiene email\" lee $json.email -> undefined, asi que el mail de\n//     confirmacion no se mandaba jamas.\n//\n// Nada de eso daba error: el workflow terminaba en verde haciendo menos de\n// lo que decia hacer.\n\nreturn [{ json: $('Mensaje al dueno').first().json }];\n"
+      },
+      "name": "Retomar datos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2860,
+        0
+      ],
+      "notes": "El nodo de Telegram devuelve su propia respuesta: sin esto, los datos de la reserva no llegan al resto del flujo.",
+      "id": "b2000000-0000-4000-8000-000000000113"
+    },
+    {
+      "parameters": {
         "conditions": {
           "options": {
             "caseSensitive": true,
@@ -336,10 +350,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        2860,
+        3080,
         0
       ],
-      "id": "b2000000-0000-4000-8000-000000000113"
+      "id": "b2000000-0000-4000-8000-000000000114"
     },
     {
       "parameters": {
@@ -369,11 +383,11 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        3080,
+        3300,
         0
       ],
       "notes": "Sin email la confirmacion queda por telefono; la reserva no se bloquea.",
-      "id": "b2000000-0000-4000-8000-000000000114"
+      "id": "b2000000-0000-4000-8000-000000000115"
     },
     {
       "parameters": {
@@ -386,11 +400,11 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
       "position": [
-        3300,
+        3520,
         0
       ],
       "onError": "continueRegularOutput",
-      "id": "b2000000-0000-4000-8000-000000000115"
+      "id": "b2000000-0000-4000-8000-000000000116"
     },
     {
       "parameters": {
@@ -401,11 +415,11 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        3520,
+        3740,
         0
       ],
       "webhookId": "b2000000-0000-4000-8000-000000000002",
-      "id": "b2000000-0000-4000-8000-000000000116"
+      "id": "b2000000-0000-4000-8000-000000000117"
     },
     {
       "parameters": {
@@ -428,10 +442,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3740,
+        3960,
         0
       ],
-      "id": "b2000000-0000-4000-8000-000000000117"
+      "id": "b2000000-0000-4000-8000-000000000118"
     },
     {
       "parameters": {
@@ -441,10 +455,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3960,
+        4180,
         0
       ],
-      "id": "b2000000-0000-4000-8000-000000000118"
+      "id": "b2000000-0000-4000-8000-000000000119"
     },
     {
       "parameters": {
@@ -483,10 +497,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        4180,
+        4400,
         0
       ],
-      "id": "b2000000-0000-4000-8000-000000000119"
+      "id": "b2000000-0000-4000-8000-000000000120"
     },
     {
       "parameters": {
@@ -546,11 +560,11 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
       "position": [
-        4400,
+        4620,
         0
       ],
       "notes": "Salida 0 Confirmada, salida 1 Rechazada, salida 2 (fallback) vencida.",
-      "id": "b2000000-0000-4000-8000-000000000120"
+      "id": "b2000000-0000-4000-8000-000000000121"
     },
     {
       "parameters": {
@@ -563,11 +577,11 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
       "position": [
-        4620,
+        4840,
         0
       ],
       "onError": "continueRegularOutput",
-      "id": "b2000000-0000-4000-8000-000000000121"
+      "id": "b2000000-0000-4000-8000-000000000122"
     },
     {
       "parameters": {
@@ -593,10 +607,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        4840,
+        5060,
         0
       ],
-      "id": "b2000000-0000-4000-8000-000000000122"
+      "id": "b2000000-0000-4000-8000-000000000123"
     },
     {
       "parameters": {
@@ -611,10 +625,10 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        5060,
+        5280,
         0
       ],
-      "id": "b2000000-0000-4000-8000-000000000123"
+      "id": "b2000000-0000-4000-8000-000000000124"
     }
   ],
   "connections": {
@@ -748,6 +762,17 @@
       ]
     },
     "Telegram - Avisar al dueno": {
+      "main": [
+        [
+          {
+            "node": "Retomar datos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retomar datos": {
       "main": [
         [
           {
