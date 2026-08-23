@@ -25,10 +25,31 @@ const bases = {
   errores: leerEnv('ARRECIFE_DB_ERRORES', '3c119da0dec98097b4d8c21f9f9fc137'),
 };
 
+// Rango del dia de la reserva, en hora de Montevideo.
+//
+// Notion compara fechas en UTC: una reserva de las 21:00 -03:00 queda
+// guardada como el dia SIGUIENTE en UTC, asi que filtrar por
+// { equals: "2028-04-22" } no devuelve ninguna reserva de cena. Y el turno
+// de cena va de 19:30 a 00:00, o sea casi todas. Con eso roto, la ocupacion
+// daba siempre 0 y los duplicados de noche no se detectaban nunca.
+//
+// Por eso se filtra por rango con el offset explicito en vez de por
+// igualdad de fecha.
+const fechaPedida = $('Reserva nueva').first().json.body.datos.fecha;
+const siguiente = new Date(new Date(`${fechaPedida}T12:00:00Z`).getTime() + 86400000)
+  .toISOString()
+  .slice(0, 10);
+
+const rangoDia = {
+  desde: `${fechaPedida}T00:00:00-03:00`,
+  hasta: `${siguiente}T00:00:00-03:00`,
+};
+
 return [
   {
     json: {
       bases,
+      rangoDia,
       // Se compara contra el header que manda la app. Ponerlo aca y no en el
       // nodo IF permite rotarlo sin tocar la logica del flujo.
       secreto: leerEnv('ARRECIFE_SECRET', 'PEGA-ACA-TU-N8N-SECRET'),

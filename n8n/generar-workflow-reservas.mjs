@@ -90,9 +90,10 @@ const FILTRO_TURNO =
   ' } }, page_size: 1 }) }}'
 
 const FILTRO_CONFIRMADAS =
-  '={{ JSON.stringify({ filter: { and: [ { property: "Fecha", date: { equals: ' +
-  FECHA_PEDIDA +
-  ' } }, { property: "Estado", select: { equals: "Confirmada" } } ] }, page_size: 100 }) }}'
+  '={{ JSON.stringify({ filter: { and: [ ' +
+  `{ property: "Fecha", date: { on_or_after: ${CFG}.rangoDia.desde } }, ` +
+  `{ property: "Fecha", date: { before: ${CFG}.rangoDia.hasta } }, ` +
+  '{ property: "Estado", select: { equals: "Confirmada" } } ] }, page_size: 100 }) }}'
 
 // El cuerpo del POST que crea la pagina. Todos los nombres salen del
 // esquema real de la base (ver notion/reservas-esquema.mjs).

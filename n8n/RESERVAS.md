@@ -43,6 +43,13 @@ de cada request es exactamente el que documenta la API, sin depender de cómo
 el nodo traduce `Propiedad|tipo` a valores — que es donde el workflow anterior
 perdía el teléfono, la fecha y la hora. La credencial sigue siendo `notionApi`.
 
+**Las reservas del día se buscan por rango, no por igualdad de fecha.**
+Notion compara en UTC: una reserva de las 21:00 `-03:00` queda guardada como
+el día *siguiente* en UTC, así que `{ equals: "2028-04-22" }` no devuelve
+ninguna reserva de cena — y el turno de cena va de 19:30 a 00:00, o sea casi
+todas. Con eso roto la ocupación daba siempre 0 y los duplicados de noche no
+se detectaban nunca. El rango lo calcula el nodo `Configuracion`.
+
 **La ocupación se calcula, no se guarda.** No hay campo `Ocupacion` en Turnos:
 se suman las personas de las reservas ya `Confirmada` de esa fecha. Un contador
 guardado se desincroniza en cuanto alguien cancela o carga una reserva a mano.
