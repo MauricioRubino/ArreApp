@@ -1,0 +1,1119 @@
+{
+  "name": "Arrecife - Reserva nueva (webhook + HITL en Notion)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "arrecife-reservas",
+        "options": {}
+      },
+      "name": "Reserva nueva",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -752,
+        1952
+      ],
+      "webhookId": "b2000000-0000-4000-8000-000000000001",
+      "id": "cb7e010d-09bb-4656-a31a-d49d7a0c5ea4",
+      "notes": "La URL de produccion es el N8N_RESERVAS_WEBHOOK_URL que va en Vercel."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Nodo Code \"Configuracion\".\n//\n// Unico lugar del workflow donde viven los identificadores. Todos los nodos\n// que hablan con Notion arman su URL desde aca, en vez de tener el ID de la\n// base escrito adentro: si una base se muda o se duplica para un ambiente de\n// prueba, se cambia en un solo lugar.\n//\n// Los valores se leen primero de las variables de entorno de n8n y recien\n// despues del literal, asi la misma exportacion del workflow sirve para\n// produccion y para pruebas sin editar nodos. El acceso a $env puede estar\n// bloqueado segun la instancia, por eso va protegido.\n\nconst leerEnv = (clave, porDefecto) => {\n  try {\n    return $env[clave] || porDefecto;\n  } catch {\n    return porDefecto;\n  }\n};\n\nconst bases = {\n  politicas: leerEnv('ARRECIFE_DB_POLITICAS', '3c119da0dec980be8594c3080b55c1d6'),\n  turnos: leerEnv('ARRECIFE_DB_TURNOS', '3c119da0dec980748fbad1f52292f811'),\n  reservas: leerEnv('ARRECIFE_DB_RESERVAS', '3c119da0dec98087b386ed1a5e21a39e'),\n  errores: leerEnv('ARRECIFE_DB_ERRORES', '3c119da0dec98097b4d8c21f9f9fc137'),\n};\n\n// Rango del dia de la reserva, en hora de Montevideo.\n//\n// Notion compara fechas en UTC: una reserva de las 21:00 -03:00 queda\n// guardada como el dia SIGUIENTE en UTC, asi que filtrar por\n// { equals: \"2028-04-22\" } no devuelve ninguna reserva de cena. Y el turno\n// de cena va de 19:30 a 00:00, o sea casi todas. Con eso roto, la ocupacion\n// daba siempre 0 y los duplicados de noche no se detectaban nunca.\n//\n// Por eso se filtra por rango con el offset explicito en vez de por\n// igualdad de fecha.\nconst fechaPedida = $('Reserva nueva').first().json.body.datos.fecha;\nconst siguiente = new Date(new Date(`${fechaPedida}T12:00:00Z`).getTime() + 86400000)\n  .toISOString()\n  .slice(0, 10);\n\nconst rangoDia = {\n  desde: `${fechaPedida}T00:00:00-03:00`,\n  hasta: `${siguiente}T00:00:00-03:00`,\n};\n\nreturn [\n  {\n    json: {\n      bases,\n      rangoDia,\n      // Se compara contra el header que manda la app. Ponerlo aca y no en el\n      // nodo IF permite rotarlo sin tocar la logica del flujo.\n      secreto: leerEnv('ARRECIFE_SECRET', 'PEGA-ACA-TU-N8N-SECRET'),\n      // Horas que espera una reserva en revision antes de vencer.\n      horasParaVencer: Number(leerEnv('ARRECIFE_HORAS_VENCIMIENTO', 4)),\n    },\n  },\n];\n"
+      },
+      "name": "Configuracion",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -544,
+        1952
+      ],
+      "id": "73d4e903-7c8e-4ece-be4f-b7634e07d960",
+      "notes": "Unico lugar con los IDs de las bases y el secreto. El resto los referencia desde aca."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "secreto",
+              "leftValue": "={{ $('Reserva nueva').first().json.headers['x-arrecife-secret'] }}",
+              "rightValue": "={{ $('Configuracion').first().json.secreto }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Secreto valido",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -320,
+        1952
+      ],
+      "id": "97fa2b8a-0a0f-45f4-9371-93b5a75154d9",
+      "notes": "El webhook es publico: sin este chequeo cualquiera carga reservas falsas."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.notion.com/v1/databases/{{ $('Configuracion').first().json.bases.politicas }}/query",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "notionApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Notion-Version",
+              "value": "2022-06-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ page_size: 100 }) }}",
+        "options": {}
+      },
+      "name": "Notion - Politicas activas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -96,
+        1952
+      ],
+      "id": "ef3107a1-d496-42b4-8362-ae49bfbaddfc",
+      "credentials": {
+        "notionApi": {
+          "id": "tBcHKMkaTkM5ofYa",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Nodo Code \"Preparar analisis\" (este archivo se llama igual que el nodo).\n//\n// Entrada: la respuesta cruda de Notion al consultar Politicas_Arrecife.\n//\n// El filtro Activo se aplica aca y no en la consulta: el filtro por\n// propiedad venia fallando desde el nodo HTTP de n8n con \"Could not find\n// property with name or id: Activo\", aunque el mismo request funciona\n// contra la API. Con 23 politicas traerlas todas y filtrar en JS no cuesta\n// nada y saca una pieza fragil del medio.\n//\n// Arma el contexto RAG y ademas el cuerpo COMPLETO de la llamada a la API\n// de Anthropic. El nodo HTTP despues solo lo serializa: armar ese JSON a\n// mano dentro de una expresion de n8n es fragil y no se puede probar.\n//\n// Ojo: la title de Politicas_Arrecife se llama \"Nombre\", no \"Tema\". Leer\n// \"Tema\" devuelve undefined y las politicas llegan como \"(sin tema)\".\n\n// n8n entrega la respuesta HTTP de Notion en formas distintas segun la\n// configuracion del nodo: un item con { results: [...] }, un item por\n// pagina ya desarmada, o —si esta activo \"Include Response Headers and\n// Status\"— envuelta en { body: { results: [...] } }. Se aceptan las tres.\n//\n// Cuando esto fallaba, el array quedaba vacio y Claude analizaba la\n// reserva sin ninguna politica: escribia \"no hay politicas cargadas\" y\n// bajaba la confianza por no poder contrastar nada. El workflow no daba\n// error, solo decidia peor.\nconst items = $input.all();\nconst todas = [];\nfor (const item of items) {\n  const j = item.json || {};\n  if (Array.isArray(j.results)) todas.push(...j.results);\n  else if (Array.isArray(j.body?.results)) todas.push(...j.body.results);\n  else if (j.properties) todas.push(j);\n}\n\nconst paginas = todas.filter((p) => p.properties?.Activo?.checkbox === true);\nconst d = $('Reserva nueva').first().json.body.datos;\n\nconst texto = (prop) => prop?.rich_text?.[0]?.plain_text || '';\nconst titulo = (prop) => prop?.title?.[0]?.plain_text || '';\n\nconst lineas = paginas.map((p) => {\n  const nombre = titulo(p.properties.Nombre) || '(sin nombre)';\n  const contenido = texto(p.properties.Contenido);\n  const categoria = p.properties.Categoria?.select?.name || 'General';\n  const prioridad = p.properties.Prioridad?.select?.name || '';\n  const aviso = p.properties.Requiere_Aviso_Previo?.checkbox ? ' (requiere aviso previo)' : '';\n  return `- [${categoria}${prioridad ? '/' + prioridad : ''}] ${nombre}${aviso}: ${contenido}`;\n});\n\nconst contexto = lineas.length > 0 ? lineas.join('\\n') : 'No hay politicas cargadas.';\n\nconst system = [\n  'Sos un asistente que evalua solicitudes de reserva del restaurante Arrecife (La Paloma, Rocha).',\n  '',\n  'Los datos de fecha, hora, personas y contacto ya vienen validados desde el formulario: no los reinterpretes ni los corrijas.',\n  'Tu unico trabajo es leer el comentario del cliente y contrastarlo con las politicas vigentes.',\n  '',\n  'Marca requiere_revision_humana = true si el comentario menciona: eventos privados o cumpleanos grandes,',\n  'alergias o restricciones alimentarias serias, mascotas, accesibilidad, pedidos que exceden la operativa normal,',\n  'o cualquier cosa que contradiga una politica.',\n  '',\n  'Si no hay nada de eso, confianza = 1 y requiere_revision_humana = false.',\n  'La capacidad del salon y el tamano del grupo los chequea el sistema aparte: no los evalues vos.',\n  '',\n  'POLITICAS VIGENTES DE ARRECIFE:',\n  contexto,\n].join('\\n');\n\nconst usuario = [\n  `Nombre: ${d.nombre}`,\n  `Personas: ${d.personas}`,\n  `Fecha: ${d.fechaLabel} (${d.fecha})`,\n  `Hora: ${d.hora}`,\n  `Zona pedida: ${d.zonaLabel}`,\n  `Comentario del cliente: ${d.comentario || 'Ninguno'}`,\n].join('\\n');\n\nconst peticion = {\n  model: 'claude-opus-5',\n  // Con el razonamiento activado (que en opus-5 viene por defecto), los\n  // tokens de pensamiento salen de este presupuesto: 1000 se queda corto y\n  // la respuesta se corta a la mitad.\n  max_tokens: 4000,\n  system,\n  // Structured outputs: la respuesta viene validada contra el esquema, asi\n  // que no hace falta pedir \"devolve solo JSON\" ni manejar el caso de que\n  // conteste con texto alrededor.\n  output_config: {\n    // Clasificar una reserva contra 23 politicas no necesita razonar hondo;\n    // bajar el esfuerzo recorta latencia y costo.\n    effort: 'low',\n    format: {\n      type: 'json_schema',\n      schema: {\n        type: 'object',\n        properties: {\n          requiere_revision_humana: { type: 'boolean' },\n          motivo_revision: { type: ['string', 'null'] },\n          confianza: { type: 'number' },\n          viola_politica: { type: 'boolean' },\n          politica_relacionada: { type: ['string', 'null'] },\n        },\n        required: [\n          'requiere_revision_humana',\n          'motivo_revision',\n          'confianza',\n          'viola_politica',\n          'politica_relacionada',\n        ],\n        additionalProperties: false,\n      },\n    },\n  },\n  messages: [{ role: 'user', content: usuario }],\n};\n\nreturn [\n  {\n    json: {\n      contexto,\n      politicas: lineas.length,\n      politicas_totales: todas.length,\n      // Diagnostico: si politicas_totales es 0, esto dice que forma tenia\n      // la respuesta para poder arreglarla sin adivinar.\n      forma_entrada: items.length === 0 ? 'sin items' : Object.keys(items[0].json || {}).join(','),\n      peticion,\n    },\n  },\n];\n"
+      },
+      "name": "Preparar analisis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        128,
+        1952
+      ],
+      "id": "89e05520-1337-4053-bfa9-50a24b701f7a",
+      "notes": "Arma el contexto RAG y el cuerpo completo de la llamada a Claude."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.peticion) }}",
+        "options": {}
+      },
+      "name": "Claude - Analizar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        352,
+        1952
+      ],
+      "id": "1f14d968-f79d-4483-9ba7-640926dc81c3",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "r2nOnXYj8bwpiSDM",
+          "name": "Header Auth account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "notes": "Credencial Header Auth con x-api-key. Si falla, Decidir manda la reserva a revision humana."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.notion.com/v1/databases/{{ $('Configuracion').first().json.bases.turnos }}/query",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "notionApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Notion-Version",
+              "value": "2022-06-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ filter: { property: \"Fecha\", date: { equals: $('Reserva nueva').first().json.body.datos.fecha } }, page_size: 1 }) }}",
+        "options": {}
+      },
+      "name": "Notion - Turno de la fecha",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        576,
+        1952
+      ],
+      "id": "ac824132-fd00-4ed3-926f-ab67452a8ac0",
+      "credentials": {
+        "notionApi": {
+          "id": "tBcHKMkaTkM5ofYa",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.notion.com/v1/databases/{{ $('Configuracion').first().json.bases.reservas }}/query",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "notionApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Notion-Version",
+              "value": "2022-06-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ filter: { and: [ { property: \"Fecha\", date: { on_or_after: $('Configuracion').first().json.rangoDia.desde } }, { property: \"Fecha\", date: { before: $('Configuracion').first().json.rangoDia.hasta } }, { property: \"Estado\", select: { equals: \"Confirmada\" } } ] }, page_size: 100 }) }}",
+        "options": {}
+      },
+      "name": "Notion - Reservas confirmadas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        784,
+        1952
+      ],
+      "id": "69626042-b250-4e63-ae3a-e0c9a2c0f77c",
+      "credentials": {
+        "notionApi": {
+          "id": "tBcHKMkaTkM5ofYa",
+          "name": "Notion account"
+        }
+      },
+      "notes": "Sirve para dos cosas: calcular la ocupacion del dia y detectar duplicados."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Nodo Code \"Decidir\".\n//\n// Junta las cuatro fuentes y decide la ruta. Cada una se referencia por\n// nombre de nodo a proposito: el $json que llega aca es el de Claude, no\n// el de la reserva.\n//\n// La ocupacion NO sale de un campo Ocupacion en Turnos: se calcula\n// sumando las personas de las reservas ya confirmadas de esa fecha. Un\n// contador guardado se desincroniza en cuanto alguien cancela o carga una\n// reserva a mano.\n\nconst cuerpo = $('Reserva nueva').first().json.body;\nconst d = cuerpo.datos;\n\n// El JSON NO esta en content[0]: claude-opus-5 razona por defecto, asi que\n// el primer bloque suele ser de tipo \"thinking\" y el texto viene despues.\n// Hay que buscar el bloque de texto, no asumir la posicion.\nlet ia;\nlet iaFallo = false;\ntry {\n  const bloques = $('Claude - Analizar').first().json.content || [];\n  const texto = bloques.find((b) => b.type === 'text')?.text;\n  ia = JSON.parse(texto);\n} catch {\n  iaFallo = true;\n  ia = {\n    requiere_revision_humana: true,\n    motivo_revision: 'No se pudo analizar la reserva automaticamente',\n    confianza: 0,\n    viola_politica: false,\n    politica_relacionada: null,\n  };\n}\n\n// Igual que en Preparar analisis: n8n a veces entrega { results: [...] } en\n// un item y a veces un item por pagina. Se aceptan las dos formas.\nconst paginasDe = (nodo) => {\n  const salida = [];\n  for (const item of $(nodo).all()) {\n    const j = item.json || {};\n    if (Array.isArray(j.results)) salida.push(...j.results);\n    else if (Array.isArray(j.body?.results)) salida.push(...j.body.results);\n    else if (j.properties) salida.push(j);\n  }\n  return salida;\n};\n\nconst turnos = paginasDe('Notion - Turno de la fecha');\nconst confirmadas = paginasDe('Notion - Reservas confirmadas');\n\nconst turnoPagina = turnos[0] ?? null;\nconst capacidad = turnoPagina?.properties?.Capacidad_Total?.number ?? null;\nconst ocupacion = confirmadas.reduce((suma, p) => suma + (p.properties?.Personas?.number || 0), 0);\n// Sin turno cargado para esa fecha no se bloquea: se asume que hay lugar y\n// que el encargado lo revisara si hace falta.\nconst hayLugar = capacidad === null ? true : ocupacion + d.personas <= capacidad;\n\n// Mismo telefono, misma fecha y ya confirmada: es la misma reserva mandada\n// dos veces, no una nueva.\nconst telefono = String(d.telefono || '').replace(/\\D/g, '');\nconst duplicada = confirmadas.some((p) => {\n  const otro = p.properties?.Telefono?.rich_text?.[0]?.plain_text || '';\n  return String(otro).replace(/\\D/g, '') === telefono;\n});\n\n// Cuantas politicas vio realmente el analisis. Si son cero, Claude\n// clasifico a ciegas: eso es una anomalia del sistema, no algo de la\n// reserva, y tiene que quedar registrado en vez de disfrazarse de\n// \"confianza baja\".\nconst politicasConsultadas = $('Preparar analisis').first().json.politicas ?? 0;\nconst formaEntrada = $('Preparar analisis').first().json.forma_entrada ?? 'desconocida';\n\nconst motivos = [];\nif (politicasConsultadas === 0) {\n  motivos.push(`ATENCION: el analisis corrio sin politicas cargadas (forma recibida: ${formaEntrada})`);\n}\nif (ia.requiere_revision_humana) motivos.push(ia.motivo_revision || 'La IA pidio revision');\nif (ia.viola_politica) motivos.push(`Politica: ${ia.politica_relacionada || 'sin especificar'}`);\nif (d.personas > 10) motivos.push(`Grupo grande (${d.personas} personas)`);\n// Si la IA fallo, la confianza es 0 por definicion: agregar \"confianza\n// baja\" al motivo solo confunde a quien lee el aviso.\nif (!iaFallo && (ia.confianza ?? 0) < 0.7) motivos.push(`Confianza baja (${ia.confianza})`);\nif (!hayLugar) motivos.push(`Sin lugar: ${ocupacion} + ${d.personas} supera ${capacidad}`);\n\nconst requiereRevision = motivos.length > 0;\n\nreturn [\n  {\n    json: {\n      numero: cuerpo.numero,\n      recibido: cuerpo.recibido,\n      nombre: d.nombre,\n      telefono: d.telefono,\n      email: d.email,\n      fecha: d.fecha,\n      fechaLabel: d.fechaLabel,\n      hora: d.hora,\n      fechaHora: d.fechaHora,\n      personas: d.personas,\n      zonaLabel: d.zonaLabel,\n      comentario: d.comentario,\n\n      duplicada,\n      requiere_revision: requiereRevision,\n      estado: requiereRevision ? 'Esperando_Aprobacion' : 'Confirmada',\n      motivo_revision: motivos.join(' · ') || null,\n      confianza: ia.confianza ?? 0,\n      politica_relacionada: ia.viola_politica ? ia.politica_relacionada : null,\n\n      capacidad,\n      ocupacion,\n      hay_lugar: hayLugar,\n      politicas_consultadas: politicasConsultadas,\n      // Para vincular la reserva con su turno al crearla (relacion en Notion).\n      turno_id: turnoPagina?.id ?? null,\n      // Lo lee la rama que registra el error: si la IA no contesto, queda\n      // constancia en la base Errores en vez de perderse.\n      ia_fallo: iaFallo,\n    },\n  },\n];\n"
+      },
+      "name": "Decidir",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1008,
+        1952
+      ],
+      "id": "732d7fa9-5c92-4a49-8e68-d141c4cbaa77",
+      "notes": "Combina reserva + IA + ocupacion y elige la ruta."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "dup",
+              "leftValue": "={{ $json.duplicada }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Es duplicada",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1232,
+        1952
+      ],
+      "id": "71e4326c-4cac-43a2-9ae8-d54489c92900"
+    },
+    {
+      "parameters": {},
+      "name": "Duplicada descartada",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1456,
+        1952
+      ],
+      "id": "3279bf3e-00e9-4374-b0d2-3702fa3efe34",
+      "notes": "Mismo telefono y misma fecha con reserva ya confirmada."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.notion.com/v1/pages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "notionApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Notion-Version",
+              "value": "2022-06-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  parent: { database_id: $('Configuracion').first().json.bases.reservas },\n  properties: {\n    Nombre_Cliente: { title: [{ text: { content: $json.nombre } }] },\n    Numero: { number: $json.numero },\n    Estado: { select: { name: $json.estado } },\n    Canal_Origen: { select: { name: 'Web' } },\n    Telefono: { rich_text: [{ text: { content: $json.telefono } }] },\n    Email: { email: $json.email || null },\n    Fecha: { date: { start: $json.fechaHora } },\n    Hora: { rich_text: [{ text: { content: $json.hora } }] },\n    Personas: { number: $json.personas },\n    Zona: { select: { name: $json.zonaLabel } },\n    Turno: $json.turno_id ? { relation: [{ id: $json.turno_id }] } : { relation: [] },\n    Observaciones: { rich_text: [{ text: { content: $json.comentario || '' } }] },\n    Confianza_IA: { number: $json.confianza },\n    Requiere_Revision: { checkbox: $json.requiere_revision },\n    Motivo_Revision: { rich_text: [{ text: { content: $json.motivo_revision || '' } }] },\n    Politica_Relacionada: { rich_text: [{ text: { content: $json.politica_relacionada || '' } }] }\n  }\n}) }}",
+        "options": {}
+      },
+      "name": "Notion - Crear reserva",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1664,
+        1952
+      ],
+      "id": "26bfe1b2-dfc9-4ec8-a621-a32ca5e1a934",
+      "credentials": {
+        "notionApi": {
+          "id": "tBcHKMkaTkM5ofYa",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Nodo Code \"Mensaje al dueno\".\n//\n// Se corre despues de crear la pagina en Notion, asi el mensaje puede\n// linkear a la reserva. El $json de entrada es la respuesta de Notion, no\n// la decision: por eso la decision se toma por nombre de nodo.\n\n// Telegram interpreta el mensaje segun el parse_mode del nodo, y el de\n// n8n usa Markdown por defecto: un guion bajo en el texto —por ejemplo el\n// nombre de una politica como \"Politica_Reserva\"— abre una cursiva que\n// nunca cierra, y Telegram rechaza el mensaje entero con \"can't parse\n// entities\". El nodo va en parse_mode HTML, donde solo estos tres\n// caracteres son especiales, y aca se escapan.\nconst escaparHtml = (t) =>\n  String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n\nconst r = $('Decidir').first().json;\nconst pagina = $input.first().json;\n\nconst lineas = [\n  r.requiere_revision ? 'RESERVA A REVISAR' : 'RESERVA CONFIRMADA',\n  `#${r.numero} - ${r.nombre}`,\n  '',\n  `${r.fechaLabel} a las ${r.hora}`,\n  `${r.personas} personas - ${r.zonaLabel}`,\n];\n\nif (r.comentario) lineas.push(`Comentario: ${r.comentario}`);\n\nlineas.push('', `Tel: ${r.telefono}`);\nif (r.email) lineas.push(`Email: ${r.email}`);\n\nif (r.capacidad !== null) {\n  lineas.push('', `Ocupacion del turno: ${r.ocupacion} + ${r.personas} de ${r.capacidad}`);\n}\n\nif (r.requiere_revision) {\n  lineas.push('', `Motivo: ${r.motivo_revision}`);\n  lineas.push(`(analizado contra ${r.politicas_consultadas} politicas)`);\n  lineas.push(\n    '',\n    'Para aprobarla o rechazarla, cambia el Estado de la reserva en Notion',\n    'a Confirmada o Rechazada. El sistema lo revisa cada 5 minutos y se',\n    'vence a las 4 horas sin respuesta.'\n  );\n}\n\nlineas.push('', `Ver en Notion: ${pagina.url}`);\n\nreturn [{ json: { ...r, reserva_id: pagina.id, reserva_url: pagina.url, mensaje: escaparHtml(lineas.join('\\n')) } }];\n"
+      },
+      "name": "Mensaje al dueno",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1888,
+        1952
+      ],
+      "id": "05694c7f-dd45-4855-87e4-d8e5db994792"
+    },
+    {
+      "parameters": {
+        "chatId": "8845984180",
+        "text": "={{ $json.mensaje }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "name": "Telegram - Avisar al dueno",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2112,
+        1952
+      ],
+      "id": "684b311e-eb75-4940-94fb-dc828870f9ec",
+      "webhookId": "764ea66d-ce8b-4bde-b256-9d91811d1a68",
+      "credentials": {
+        "telegramApi": {
+          "id": "mJyCX3jcavHpTM9h",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Nodo Code \"Retomar datos\".\n//\n// En n8n la salida de cada nodo es la entrada del siguiente, y el nodo de\n// Telegram devuelve la respuesta de SU API ({ ok, result: { message_id } }),\n// no los datos de la reserva. Sin este nodo, todo lo que viene despues\n// evalua $json sobre la respuesta de Telegram:\n//\n//   - \"Requiere aprobacion\" lee $json.requiere_revision -> undefined,\n//     asi que toda reserva se iba por la rama de confirmada y el loop de\n//     aprobacion no corria nunca;\n//   - \"Tiene email\" lee $json.email -> undefined, asi que el mail de\n//     confirmacion no se mandaba jamas.\n//\n// Nada de eso daba error: el workflow terminaba en verde haciendo menos de\n// lo que decia hacer.\n\nreturn [{ json: $('Mensaje al dueno').first().json }];\n"
+      },
+      "name": "Retomar datos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2336,
+        1952
+      ],
+      "id": "33e6dea4-02e1-4499-9406-4ac5aa1d3bf5",
+      "notes": "El nodo de Telegram devuelve su propia respuesta: sin esto, los datos de la reserva no llegan al resto del flujo."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "fallo",
+              "leftValue": "={{ $json.ia_fallo }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Fallo la IA",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2544,
+        1952
+      ],
+      "id": "07a955c0-a855-4926-808f-78849850add0",
+      "notes": "Rama paralela: la reserva sigue su curso igual, esto solo deja constancia."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Nodo Code \"Armar error\".\n//\n// Deja registro en la base Errores cuando el analisis de IA no se pudo\n// hacer. La reserva NO se pierde —Decidir la manda a revision humana— pero\n// sin este registro el fallo era invisible: el workflow terminaba en verde\n// y nadie se enteraba de que Claude no habia contestado.\n//\n// Se corre despues de crear la reserva a proposito, para poder vincular el\n// error con ella (Reserva_Relacionada) en vez de dejar un registro suelto.\n\nconst r = $('Mensaje al dueno').first().json;\nconst bases = $('Configuracion').first().json.bases;\n\n// Lo minimo para poder reproducir el caso, sin volcar la reserva entera:\n// telefono y email no hacen falta para depurar por que fallo la IA.\nconst payload = {\n  numero: r.numero,\n  fecha: r.fecha,\n  hora: r.hora,\n  personas: r.personas,\n  zona: r.zonaLabel,\n  comentario: r.comentario,\n  politicas_consultadas: r.politicas_consultadas,\n};\n\n// rich_text corta en 2000 caracteres.\nconst texto = JSON.stringify(payload).slice(0, 1900);\n\nconst peticion = {\n  parent: { database_id: bases.errores },\n  properties: {\n    Error_numero: {\n      title: [{ text: { content: `Reserva #${r.numero} - fallo el analisis de IA` } }],\n    },\n    Tipo_Error: { select: { name: 'API_IA_Fallo' } },\n    Payload_Original: { rich_text: [{ text: { content: texto } }] },\n    Resuelto: { checkbox: false },\n    Reserva_Relacionada: { relation: [{ id: r.reserva_id }] },\n  },\n};\n\nreturn [{ json: { peticion, numero: r.numero } }];\n"
+      },
+      "name": "Armar error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2768,
+        1952
+      ],
+      "id": "ff92707e-1028-40d3-a476-bdbc4005cb20"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.notion.com/v1/pages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "notionApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Notion-Version",
+              "value": "2022-06-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.peticion) }}",
+        "options": {}
+      },
+      "name": "Notion - Registrar error",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2992,
+        1952
+      ],
+      "id": "7b973542-f2e0-4111-aa83-b29ed074631f",
+      "credentials": {
+        "notionApi": {
+          "id": "tBcHKMkaTkM5ofYa",
+          "name": "Notion account"
+        }
+      },
+      "notes": "Deja el fallo en la base Errores, vinculado a la reserva que lo genero."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "rev",
+              "leftValue": "={{ $json.requiere_revision }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Requiere aprobacion",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        3216,
+        1952
+      ],
+      "id": "b3efd82f-9bb0-4a36-a39f-32b92840674e"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "mail",
+              "leftValue": "={{ $json.email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Tiene email",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        3424,
+        1952
+      ],
+      "id": "4f884cd4-6982-4154-9db1-1c9f37dd1d53",
+      "notes": "Sin email la confirmacion queda por telefono; la reserva no se bloquea."
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "=Tu reserva en Arrecife esta confirmada",
+        "message": "=Hola {{ $json.nombre }},\n\nTu reserva quedo confirmada:\n\n{{ $json.fechaLabel }} a las {{ $json.hora }}\n{{ $json.personas }} personas - {{ $json.zonaLabel }}\n\nSi necesitas cambiar algo, respondenos este mail o llamanos.\n\nTe esperamos.\nArrecife",
+        "options": {}
+      },
+      "name": "Gmail - Confirmar al cliente",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        3648,
+        1952
+      ],
+      "id": "d55cc92e-d448-48bb-b4a6-74793f1ddf56",
+      "webhookId": "e54e8de0-8683-4683-900e-99bf24ef5e1f",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "b85AFoS5gA9X7LEp",
+          "name": "Gmail account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "unit": "minutes"
+      },
+      "name": "Esperar 5 min",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3872,
+        1952
+      ],
+      "webhookId": "b2000000-0000-4000-8000-000000000002",
+      "id": "6c58da6b-e0e0-46f5-8799-c9f71b12f51e"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.notion.com/v1/pages/{{ $('Mensaje al dueno').first().json.reserva_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "notionApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Notion-Version",
+              "value": "2022-06-28"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Notion - Releer reserva",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4096,
+        1952
+      ],
+      "id": "3ac6a6ba-5477-4a43-a2da-4c7cc7b06dea",
+      "credentials": {
+        "notionApi": {
+          "id": "tBcHKMkaTkM5ofYa",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Nodo Code \"Evaluar aprobacion\".\n//\n// Entrada: la pagina releida desde Notion. Decide si el encargado ya\n// respondio o si hay que seguir esperando.\n//\n// El estado se lee de properties.Estado.select.name, que es la forma que\n// devuelve la API de Notion. Leerlo de page['Estado'] devuelve undefined\n// y el loop no sale nunca hasta vencer.\n\nconst original = $('Mensaje al dueno').first().json;\nconst pagina = $input.first().json;\n\nconst estado = pagina.properties?.Estado?.select?.name || 'Esperando_Aprobacion';\n\nconst creado = pagina.created_time || original.recibido;\nconst horas = (Date.now() - new Date(creado).getTime()) / (1000 * 60 * 60);\n// El limite sale de Configuracion, no escrito aca: es una regla de\n// negocio que el restaurante puede querer cambiar.\nconst limite = $('Configuracion').first().json.horasParaVencer ?? 4;\nconst vencida = horas >= limite;\n\nreturn [\n  {\n    json: {\n      ...original,\n      estado_actual: estado,\n      vencida,\n      horas_esperando: Math.round(horas * 100) / 100,\n      horas_limite: limite,\n    },\n  },\n];\n"
+      },
+      "name": "Evaluar aprobacion",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4304,
+        1952
+      ],
+      "id": "0faccecd-0627-44b8-a621-4b69d6503735"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "esperando",
+              "leftValue": "={{ $json.estado_actual }}",
+              "rightValue": "Esperando_Aprobacion",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "novencida",
+              "leftValue": "={{ $json.vencida }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Sigue esperando",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        4528,
+        1952
+      ],
+      "id": "86ead73c-7fbb-4f4d-a034-ff2ca240c4b0"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "ok",
+                    "leftValue": "={{ $json.estado_actual }}",
+                    "rightValue": "Confirmada",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "no",
+                    "leftValue": "={{ $json.estado_actual }}",
+                    "rightValue": "Rechazada",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "name": "Resultado",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        4752,
+        1952
+      ],
+      "id": "d3e5b4a6-8d22-407b-abf6-244e17134ad2",
+      "notes": "Salida 0 Confirmada, salida 1 Rechazada, salida 2 (fallback) vencida."
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "=Tu reserva en Arrecife no pudo confirmarse",
+        "message": "=Hola {{ $json.nombre }},\n\nNo pudimos confirmar tu reserva para el {{ $json.fechaLabel }} a las {{ $json.hora }} ({{ $json.personas }} personas).\n\nEscribinos o llamanos y buscamos otra alternativa.\n\nArrecife",
+        "options": {}
+      },
+      "name": "Gmail - Avisar rechazo",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        4976,
+        1952
+      ],
+      "id": "f64c8523-22c5-47c4-a73e-9b8a10d3504b",
+      "webhookId": "e676bdfc-3609-4653-8ec8-f4f5b77e3665",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "b85AFoS5gA9X7LEp",
+          "name": "Gmail account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://api.notion.com/v1/pages/{{ $json.reserva_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "notionApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Notion-Version",
+              "value": "2022-06-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ properties: { Estado: { select: { name: \"Vencida\" } } } }) }}",
+        "options": {}
+      },
+      "name": "Notion - Marcar vencida",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5184,
+        1952
+      ],
+      "id": "d66645ee-cc15-4eb1-8455-00b226f8b09b",
+      "credentials": {
+        "notionApi": {
+          "id": "tBcHKMkaTkM5ofYa",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "8845984180",
+        "text": "=Reserva #{{ $json.numero }} sin respuesta hace mas de 4 horas, quedo marcada como Vencida.\n\n{{ $json.nombre }} - {{ $json.telefono }}\n{{ $json.fechaLabel }} a las {{ $json.hora }} - {{ $json.personas }} personas\n\nHay que contactar al cliente a mano.\n\n{{ $json.reserva_url }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "name": "Telegram - Escalar vencida",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        5408,
+        1952
+      ],
+      "id": "555413e8-40ce-4b92-89cb-d1414d83a653",
+      "webhookId": "1e5a3b29-122f-4ce6-baa8-dded3e5fb292",
+      "credentials": {
+        "telegramApi": {
+          "id": "mJyCX3jcavHpTM9h",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Reserva nueva": {
+      "main": [
+        [
+          {
+            "node": "Configuracion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configuracion": {
+      "main": [
+        [
+          {
+            "node": "Secreto valido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Secreto valido": {
+      "main": [
+        [
+          {
+            "node": "Notion - Politicas activas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notion - Politicas activas": {
+      "main": [
+        [
+          {
+            "node": "Preparar analisis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar analisis": {
+      "main": [
+        [
+          {
+            "node": "Claude - Analizar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude - Analizar": {
+      "main": [
+        [
+          {
+            "node": "Notion - Turno de la fecha",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notion - Turno de la fecha": {
+      "main": [
+        [
+          {
+            "node": "Notion - Reservas confirmadas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notion - Reservas confirmadas": {
+      "main": [
+        [
+          {
+            "node": "Decidir",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decidir": {
+      "main": [
+        [
+          {
+            "node": "Es duplicada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Es duplicada": {
+      "main": [
+        [
+          {
+            "node": "Duplicada descartada",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notion - Crear reserva",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notion - Crear reserva": {
+      "main": [
+        [
+          {
+            "node": "Mensaje al dueno",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mensaje al dueno": {
+      "main": [
+        [
+          {
+            "node": "Telegram - Avisar al dueno",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fallo la IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fallo la IA": {
+      "main": [
+        [
+          {
+            "node": "Armar error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Armar error": {
+      "main": [
+        [
+          {
+            "node": "Notion - Registrar error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram - Avisar al dueno": {
+      "main": [
+        [
+          {
+            "node": "Retomar datos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retomar datos": {
+      "main": [
+        [
+          {
+            "node": "Requiere aprobacion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Requiere aprobacion": {
+      "main": [
+        [
+          {
+            "node": "Esperar 5 min",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Tiene email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tiene email": {
+      "main": [
+        [
+          {
+            "node": "Gmail - Confirmar al cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Esperar 5 min": {
+      "main": [
+        [
+          {
+            "node": "Notion - Releer reserva",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notion - Releer reserva": {
+      "main": [
+        [
+          {
+            "node": "Evaluar aprobacion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluar aprobacion": {
+      "main": [
+        [
+          {
+            "node": "Sigue esperando",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sigue esperando": {
+      "main": [
+        [
+          {
+            "node": "Esperar 5 min",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resultado": {
+      "main": [
+        [
+          {
+            "node": "Tiene email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Gmail - Avisar rechazo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notion - Marcar vencida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notion - Marcar vencida": {
+      "main": [
+        [
+          {
+            "node": "Telegram - Escalar vencida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "9914073e-0509-40ac-994a-517c3d7cbea0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b3002e07c61cc5f681b04d1f1fe74d6b572239315894366c82663e66c84c1827"
+  },
+  "nodeGroups": [],
+  "id": "wr07e88a8xcVP1gX",
+  "tags": []
+}

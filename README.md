@@ -157,17 +157,13 @@ n8n puede confiar en ellos sin volver a chequear nada.
 
 ## Entrega del proyecto final
 
-La documentación del ecosistema de automatización está en [`docs/`](docs/):
+Toda la documentacion, los workflows y los enlaces a las bases estan en
+**[`Entrega Final - Ecosistema de Automatización IA Autónomo para Negocios/`](Entrega%20Final%20-%20Ecosistema%20de%20Automatización%20IA%20Autónomo%20para%20Negocios/)**.
 
-| Archivo | Contenido |
-| --- | --- |
-| [`entrega-final.pdf`](docs/entrega-final.pdf) | Mapa de arquitectura, estructuras de datos, matriz de costos, seguridad y resiliencia |
-| [`entrega-final.html`](docs/entrega-final.html) | Fuente del PDF; se regenera con el comando de abajo |
-| [`dashboard.md`](docs/dashboard.md) | Vistas del panel de control e indicadores |
-| [`guion-video.md`](docs/guion-video.md) | Guion cronometrado del video demo |
-
-Los archivos técnicos de respaldo son los workflows de
-[`n8n/`](n8n/) y los scripts de esquema de [`notion/`](notion/).
+El documento principal es
+[`entrega-final.pdf`](Entrega%20Final%20-%20Ecosistema%20de%20Automatización%20IA%20Autónomo%20para%20Negocios/entrega-final.pdf):
+mapa de arquitectura, estructuras de datos, matriz de costos, y seguridad y
+resiliencia.
 
 Para regenerar el PDF tras editar el HTML (requiere Edge o Chrome):
 
