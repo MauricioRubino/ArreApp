@@ -7,7 +7,14 @@
     "dev": "node --use-system-ca ./node_modules/vite/bin/vite.js",
     "build": "vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "notion:esquema": "node --use-system-ca notion/reservas-esquema.mjs",
+    "notion:alinear": "node --use-system-ca notion/aplicar-esquema.mjs",
+    "notion:crear": "node --use-system-ca notion/crear-base.mjs",
+    "notion:verificar": "node --use-system-ca notion/verificar.mjs",
+    "notion:chequear": "node notion/verificar-esquema.mjs",
+    "telegram:chatid": "node --use-system-ca n8n/telegram-chat-id.mjs",
+    "n8n:generar": "node n8n/generar-workflow.mjs && node n8n/generar-workflow-reservas.mjs"
   },
   "dependencies": {
     "@upstash/redis": "^1.38.0",
