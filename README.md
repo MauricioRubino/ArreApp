@@ -155,6 +155,31 @@ Con `"tipo": "reservation"`, `datos` trae `nombre`, `telefono`, `fecha`,
 Los datos ya vienen validados y con los precios recalculados contra la carta:
 n8n puede confiar en ellos sin volver a chequear nada.
 
+## Entrega del proyecto final
+
+La documentación del ecosistema de automatización está en [`docs/`](docs/):
+
+| Archivo | Contenido |
+| --- | --- |
+| [`entrega-final.pdf`](docs/entrega-final.pdf) | Mapa de arquitectura, estructuras de datos, matriz de costos, seguridad y resiliencia |
+| [`entrega-final.html`](docs/entrega-final.html) | Fuente del PDF; se regenera con el comando de abajo |
+| [`dashboard.md`](docs/dashboard.md) | Vistas del panel de control e indicadores |
+
+Los archivos técnicos de respaldo son los workflows de
+[`n8n/`](n8n/) y los scripts de esquema de [`notion/`](notion/).
+
+Para regenerar el PDF tras editar el HTML (requiere Edge o Chrome):
+
+```bash
+npm run docs:pdf
+```
+
+Y para recalcular los indicadores del dashboard contra Notion:
+
+```bash
+npm run notion:kpis
+```
+
 ## Deploy en Vercel
 
 1. Importar el repo en Vercel (framework Vite, se detecta solo). El
