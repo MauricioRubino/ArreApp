@@ -60,7 +60,7 @@ const workflow = {
       parameters: {
         chatId: 'PEGA-ACA-TU-CHAT-ID',
         text: '={{ $json.mensaje }}',
-        additionalFields: { appendAttribution: false },
+        additionalFields: { appendAttribution: false, parse_mode: 'HTML' },
       },
       id: 'a1000000-0000-4000-8000-000000000004',
       name: 'Avisar al dueno',

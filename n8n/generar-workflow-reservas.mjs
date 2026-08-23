@@ -229,7 +229,7 @@ const nodes = [
     parameters: {
       chatId: 'PEGA-ACA-TU-CHAT-ID',
       text: '={{ $json.mensaje }}',
-      additionalFields: { appendAttribution: false },
+      additionalFields: { appendAttribution: false, parse_mode: 'HTML' },
     },
     name: 'Telegram - Avisar al dueno',
     type: 'n8n-nodes-base.telegram',
@@ -335,7 +335,7 @@ const nodes = [
     parameters: {
       chatId: 'PEGA-ACA-TU-CHAT-ID',
       text: TELEGRAM_VENCIDA,
-      additionalFields: { appendAttribution: false },
+      additionalFields: { appendAttribution: false, parse_mode: 'HTML' },
     },
     name: 'Telegram - Escalar vencida',
     type: 'n8n-nodes-base.telegram',

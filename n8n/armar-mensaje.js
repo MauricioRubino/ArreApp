@@ -8,6 +8,15 @@
 // Va en texto plano a propósito, sin parse_mode: un nombre con & o con _
 // rompería el formato de Telegram justo en medio del servicio.
 
+// Telegram interpreta el mensaje segun el parse_mode del nodo, y el de
+// n8n usa Markdown por defecto: un guion bajo en el texto —por ejemplo el
+// nombre de una politica como "Politica_Reserva"— abre una cursiva que
+// nunca cierra, y Telegram rechaza el mensaje entero con "can't parse
+// entities". El nodo va en parse_mode HTML, donde solo estos tres
+// caracteres son especiales, y aca se escapan.
+const escaparHtml = (t) =>
+  String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
 const cuerpo = $input.first().json.body;
 const d = cuerpo.datos;
 
@@ -32,4 +41,4 @@ if (d.mapsUrl) lineas.push(`Mapa: ${d.mapsUrl}`);
 
 lineas.push('', `Ver en Notion: ${cuerpo.notion.url}`);
 
-return [{ json: { mensaje: lineas.join('\n'), numero: cuerpo.numero } }];
+return [{ json: { mensaje: escaparHtml(lineas.join('\n')), numero: cuerpo.numero } }];
