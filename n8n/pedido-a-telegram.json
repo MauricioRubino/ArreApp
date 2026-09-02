@@ -57,23 +57,11 @@
       "main": [
         [
           {
-            "node": "Secreto valido",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Secreto valido": {
-      "main": [
-        [
-          {
             "node": "Armar mensaje",
             "type": "main",
             "index": 0
           }
-        ],
-        []
+        ]
       ]
     },
     "Armar mensaje": {

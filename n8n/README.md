@@ -8,11 +8,19 @@ Cuando entra un pedido, la app lo guarda en Notion y después dispara este
 workflow, que le avisa al dueño por Telegram.
 
 ```
-Pedido nuevo (Webhook) → Secreto válido (IF) → Armar mensaje (Code) → Avisar al dueño (Telegram)
+Pedido nuevo (Webhook · Header Auth) → Armar mensaje (Code) → Avisar al dueño (Telegram)
 ```
 
-La rama falsa del IF queda vacía a propósito: un pedido sin el secreto
-correcto se descarta en silencio.
+**El secreto lo verifica el propio webhook**, con una credencial *Header Auth*
+que exige `X-Arrecife-Secret`. Un pedido sin ese header se rechaza con 403
+antes de que el workflow empiece a ejecutarse: no gasta una ejecución ni queda
+en el historial.
+
+Antes eso lo hacía un nodo IF llamado `Secreto valido`, con la rama falsa
+vacía. Se sacó porque el secreto quedaba escrito adentro del workflow —o sea,
+se perdía al reimportar y no se podía versionar el JSON sin filtrarlo—, y
+porque descartar el pedido *después* de haberlo aceptado igual consumía una
+ejecución.
 
 ## 1. Crear el bot de Telegram
 
@@ -61,9 +69,12 @@ archivo para no versionar secretos:
 
 | Dónde | Qué poner |
 | --- | --- |
-| Nodo **Secreto válido** | reemplazar `PEGA-ACA-TU-N8N-SECRET` por tu `N8N_SECRET` |
+| Nodo **Pedido nuevo** | elegir una credencial **Header Auth** con *Name* = `X-Arrecife-Secret` y *Value* = tu `N8N_SECRET` |
 | Nodo **Avisar al dueño** | reemplazar `PEGA-ACA-TU-CHAT-ID` por el `chatId` del dueño |
 | Nodo **Avisar al dueño** | elegir la credencial de Telegram (creala con el token de BotFather) |
+
+La credencial Header Auth es la misma para los dos workflows: se crea una vez y
+se elige en los dos webhooks.
 
 Activá el workflow y copiá la **Production URL** del nodo Webhook.
 
@@ -73,12 +84,14 @@ En Vercel (Settings → Environment Variables) y en `.env.local`:
 
 ```
 N8N_WEBHOOK_URL=https://tu-n8n/webhook/arrecife-pedidos
-N8N_SECRET=el-mismo-que-pusiste-en-el-IF
+N8N_SECRET=el-mismo-valor-que-la-credencial-header-auth
 ```
 
 El `N8N_SECRET` lo inventás vos. La app lo manda en el header
-`X-Arrecife-Secret` y el IF lo verifica: el webhook es una URL pública y sin
-eso cualquiera podría dispararle pedidos falsos al dueño.
+`X-Arrecife-Secret` y la credencial Header Auth del webhook lo verifica: la URL
+es pública y sin eso cualquiera podría dispararle pedidos falsos al dueño. El
+valor de la credencial en n8n y el `N8N_SECRET` de Vercel tienen que ser
+idénticos.
 
 Si n8n es self-hosted, la URL tiene que ser **alcanzable desde Vercel**:
 HTTPS público con certificado válido (dominio propio, o un Cloudflare Tunnel
@@ -117,6 +130,12 @@ Si preferís versionarlo, el mismo código está en
 [`armar-mensaje.js`](armar-mensaje.js) como JavaScript de verdad (así se
 puede probar), y `node n8n/generar-workflow.mjs` regenera el JSON a partir
 de él.
+
+Antes de escribir el archivo, el generador **verifica que todos los nodos sean
+alcanzables desde el webhook** y que ninguna conexión apunte a un nodo que no
+existe — la misma comprobación que hace el de reservas. No es hipotético: al
+sacar el nodo IF quedó una conexión hacia él, y el JSON siguió siendo válido
+para n8n aunque el workflow importado no ejecutaba nada.
 
 ## Lo que recibe el webhook
 
