@@ -16,6 +16,7 @@ detiene a pedir aprobación humana cuando la reserva lo amerita.
 | **Canales de salida** | Gmail al cliente · Telegram al encargado |
 | **Aplicación** | React + funciones serverless en Vercel |
 | **Producción** | https://arre-app.vercel.app |
+| **Video demo** | https://youtu.be/lzZIMKeJYp4 |
 
 ---
 
@@ -25,6 +26,7 @@ detiene a pedir aprobación humana cuando la reserva lo amerita.
 | --- | --- |
 | **[entrega-final.pdf](entrega-final.pdf)** | Mapa de arquitectura · Estructuras de datos · Optimización de costos · Seguridad y resiliencia |
 | [dashboard.md](dashboard.md) | Dashboard de control: vistas e indicadores |
+| **[Video de presentación](https://youtu.be/lzZIMKeJYp4)** | Demostración del sistema funcionando |
 | [guion-video.md](guion-video.md) | Guion cronometrado del video demo |
 | [entrega-final.html](entrega-final.html) | Fuente del PDF; se regenera con `npm run docs:pdf` |
 

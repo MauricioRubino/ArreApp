@@ -17,6 +17,7 @@ detiene a pedir aprobación humana cuando la reserva lo amerita.
 | **Canales de salida** | Gmail al cliente · Telegram al encargado |
 | **Aplicación** | React + funciones serverless en Vercel |
 | **Producción** | https://arre-app.vercel.app |
+| **Video demo** | https://youtu.be/lzZIMKeJYp4 |
 
 > **La aplicación no manda ni recibe mensajes.** Toda la comunicación con el
 > cliente y con el encargado vive en n8n, del otro lado del webhook. Cambiar un
@@ -388,7 +389,9 @@ Dos trampas que costaron caro y quedaron documentadas:
 
 ## Entrega del proyecto final
 
-Todo en
+**Video de presentación: [youtu.be/lzZIMKeJYp4](https://youtu.be/lzZIMKeJYp4)**
+
+El resto está en
 **[`Entrega Final - Ecosistema de Automatización IA Autónomo para Negocios/`](Entrega%20Final%20-%20Ecosistema%20de%20Automatización%20IA%20Autónomo%20para%20Negocios/)**:
 
 | Archivo | Qué contiene |
