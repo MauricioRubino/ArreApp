@@ -9,9 +9,9 @@ Guardá acá los PNG. Los nombres sugeridos son los que referencia el índice.
 | ~~`03-ejecuciones.png`~~ | ✅ listo — historial de ejecuciones en n8n |
 | `04-analisis-ia.png` | La salida del nodo `Claude - Analizar`, con el JSON validado |
 | `05-notion-reserva.png` | La reserva en Notion con `Motivo_Revision` citando las políticas |
-| `06-telegram.png` | El aviso recibido en Telegram |
+| ~~`06-telegram.png`~~ | ✅ listo — el aviso recibido en Telegram |
 | `07-aprobacion.png` | El cambio de `Estado` a `Confirmada` en Notion |
-| `08-mail-cliente.png` | El correo de confirmación que le llega al cliente |
+| ~~`08-mail-cliente.png`~~ | ✅ listo — el correo de confirmación que le llega al cliente |
 | `09-camino-infeliz.png` | Un envío incompleto rechazado con el detalle de campos faltantes |
 | `10-dashboard.png` | La vista pública de Notion con los indicadores |
 

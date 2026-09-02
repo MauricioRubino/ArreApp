@@ -400,7 +400,7 @@ El resto está en
 | dashboard.md | Las cinco vistas de control y los indicadores |
 | guion-video.md | Guion cronometrado del video demo |
 | workflows/ | Los dos flujos exportados, con los secretos reemplazados por marcadores |
-| capturas/ | El formulario en producción y el historial de ejecuciones en n8n |
+| capturas/ | Evidencia: el formulario en producción, el historial de ejecuciones en n8n, el aviso al encargado por Telegram y el mail de confirmación al cliente |
 
 El PDF se regenera desde el HTML con `npm run docs:pdf` (requiere Edge o Chrome).
 

@@ -72,6 +72,8 @@ cambia cómo se evalúa la próxima reserva, sin tocar el flujo.
 | --- | --- |
 | [01-formulario.png](capturas/01-formulario.png) | El formulario de reserva en producción |
 | [03-ejecuciones.png](capturas/03-ejecuciones.png) | El historial de ejecuciones en n8n, con la última exitosa en 9,9 s |
+| [06-telegram.png](capturas/06-telegram.png) | El aviso al encargado. La reserva #2 se derivó a revisión y el motivo cita las políticas una por una: mascotas, descorche, horario de cocina y pedidos fuera de la operativa |
+| [08-mail-cliente.png](capturas/08-mail-cliente.png) | El correo de confirmación que recibe el cliente cuando la reserva queda `Confirmada` |
 
 El historial incluye ejecuciones fallidas de la etapa de desarrollo: quedaron a
 propósito, porque documentan las pruebas del camino infeliz.
