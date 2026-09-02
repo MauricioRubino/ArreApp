@@ -1,0 +1,939 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<title>Arrecife — Ecosistema de Automatización IA</title>
+<style>
+  @page { size: A4; margin: 17mm 16mm 15mm; }
+
+  :root {
+    --tinta: #2a2119;
+    --dim: #6b6155;
+    --title: #a63a2c;
+    --linea: #d8c7ac;
+    --crema: #f8f3e8;
+    --teal: #1c8b7f;
+  }
+
+  * { box-sizing: border-box; }
+
+  /* Fondo y esquema explícitos: sin esto, un visor en modo oscuro invierte
+     el documento y los diagramas quedan ilegibles. */
+  html { color-scheme: light; background: #fff; }
+
+  body {
+    font: 10.5pt/1.55 Georgia, "Times New Roman", serif;
+    color: var(--tinta);
+    background: #fff;
+    margin: 0;
+  }
+
+  h1, h2, h3, h4, .sans { font-family: "Segoe UI", Inter, system-ui, sans-serif; }
+
+  h1 { font-size: 25pt; line-height: 1.15; margin: 0 0 4mm; letter-spacing: -0.4pt; }
+  h2 {
+    font-size: 14pt; margin: 9mm 0 3mm; padding-bottom: 1.5mm;
+    border-bottom: 1.5pt solid var(--title); color: var(--title);
+    page-break-after: avoid; letter-spacing: -0.2pt;
+  }
+  h3 { font-size: 11pt; margin: 6mm 0 2mm; page-break-after: avoid; }
+  h4 { font-size: 9.5pt; margin: 4mm 0 1.5mm; color: var(--dim);
+       text-transform: uppercase; letter-spacing: 0.6pt; page-break-after: avoid; }
+  p { margin: 0 0 2.5mm; }
+  ul, ol { margin: 0 0 3mm; padding-left: 5mm; }
+  li { margin-bottom: 1.2mm; }
+
+  code, pre { font-family: Consolas, "Courier New", monospace; }
+  code { font-size: 9pt; background: var(--crema); padding: 0.3mm 1mm; border-radius: 1mm; }
+  pre {
+    font-size: 8pt; line-height: 1.4; background: var(--crema);
+    border-left: 2pt solid var(--linea); padding: 2.5mm 3mm;
+    margin: 0 0 3mm; overflow: hidden; white-space: pre-wrap;
+    page-break-inside: avoid;
+  }
+  pre code { background: none; padding: 0; font-size: inherit; }
+
+  table { width: 100%; border-collapse: collapse; margin: 0 0 3.5mm;
+          font-size: 8.8pt; page-break-inside: avoid; }
+  th, td { text-align: left; padding: 1.6mm 2mm; border-bottom: 0.5pt solid var(--linea);
+           vertical-align: top; }
+  th { font-family: "Segoe UI", sans-serif; font-size: 8pt; text-transform: uppercase;
+       letter-spacing: 0.5pt; color: var(--dim); border-bottom: 1pt solid var(--dim); }
+  td.num { text-align: right; font-family: Consolas, monospace; white-space: nowrap; }
+  tr.destacada td { background: #fdf6e9; font-weight: bold; }
+
+  .portada { padding-top: 22mm; page-break-after: always; }
+  .sello { font-family: "Segoe UI", sans-serif; font-size: 8.5pt; letter-spacing: 2pt;
+           text-transform: uppercase; color: var(--title); margin-bottom: 6mm; }
+  .bajada { font-size: 12pt; color: var(--dim); line-height: 1.5; margin-bottom: 12mm;
+            max-width: 135mm; }
+  .meta { font-size: 9pt; color: var(--dim); border-top: 1pt solid var(--linea);
+          padding-top: 4mm; }
+  .meta div { margin-bottom: 1.5mm; }
+  .meta b { font-family: "Segoe UI", sans-serif; font-size: 8pt; text-transform: uppercase;
+            letter-spacing: 0.5pt; color: var(--tinta); display: inline-block; min-width: 32mm; }
+
+  .nota {
+    border-left: 2.5pt solid var(--teal); background: #f2f8f7;
+    padding: 2.5mm 3mm; margin: 0 0 3.5mm; font-size: 9.5pt;
+    page-break-inside: avoid;
+  }
+  .nota b { color: var(--teal); }
+
+  .indice { columns: 2; column-gap: 8mm; font-size: 9.5pt; }
+  .indice p { margin-bottom: 1.5mm; }
+
+  figure { margin: 0 0 4mm; page-break-inside: avoid; }
+  figcaption { font-family: "Segoe UI", sans-serif; font-size: 8pt; color: var(--dim);
+               margin-top: 1.5mm; }
+  svg { width: 100%; height: auto; display: block; }
+
+  .salto { page-break-before: always; }
+  .juntos { page-break-inside: avoid; }
+</style>
+
+<!-- ═══════════════════════════ PORTADA ═══════════════════════════ -->
+<section class="portada">
+  <div class="sello">Proyecto final · Automatización con IA</div>
+  <h1>Ecosistema de automatización<br>para Arrecife</h1>
+  <p class="bajada">
+    Un restaurante de La Paloma recibe pedidos y reservas por su web. El sistema
+    los valida, los razona contra las políticas del local con un modelo de
+    lenguaje, los registra en Notion y avisa al dueño — deteniéndose a pedir
+    aprobación humana sólo cuando la reserva lo amerita.
+  </p>
+
+  <div class="meta">
+    <div><b>Caso de uso</b> Triage automático de reservas de restaurante</div>
+    <div><b>Orquestador</b> n8n Cloud</div>
+    <div><b>Base de datos</b> Notion — 5 bases relacionadas</div>
+    <div><b>Procesamiento IA</b> Anthropic Claude (RAG sobre políticas + salida estructurada)</div>
+    <div><b>Canales de salida</b> Gmail al cliente · Telegram al encargado</div>
+    <div><b>Aplicación</b> React + funciones serverless en Vercel</div>
+    <div><b>Repositorio</b> github.com/MauricioRubino/ArreApp</div>
+    <div><b>Producción</b> arre-app.vercel.app</div>
+  </div>
+
+  <h4 style="margin-top:12mm">Contenido</h4>
+  <div class="indice">
+    <p>1 · Mapa de arquitectura</p>
+    <p>2 · Estructuras de datos</p>
+    <p>3 · Optimización de costos</p>
+    <p>4 · Seguridad y resiliencia</p>
+    <p>5 · Dashboard de control</p>
+    <p>6 · Evidencia de pruebas</p>
+  </div>
+</section>
+
+<!-- ═══════════════════════ 1 · ARQUITECTURA ═══════════════════════ -->
+<h2>1 · Mapa de arquitectura</h2>
+
+<p>
+  El sistema resuelve dos procesos de negocio distintos que comparten la misma
+  puerta de entrada. La diferencia entre ellos no es cosmética: define quién es
+  dueño del dato.
+</p>
+
+<div class="nota">
+  <b>Decisión central.</b> En los pedidos, la aplicación escribe en Notion y n8n
+  sólo avisa. En las reservas, <i>n8n es quien escribe</i>, porque el estado de
+  una reserva depende de un análisis que ocurre dentro del flujo. Confundir los
+  dos repartos rompe cualquiera de los dos procesos.
+</div>
+
+<h3>1.1 · Flujo de pedidos</h3>
+
+<figure>
+<svg viewBox="0 0 900 168" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif">
+  <defs>
+    <marker id="f1" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,1 L7,4 L0,7 z" fill="#6b6155"/>
+    </marker>
+  </defs>
+
+  <text x="4" y="12" font-size="9" fill="#a63a2c" font-weight="bold">NAVEGADOR</text>
+  <rect x="4" y="20" width="120" height="46" rx="4" fill="#f8f3e8" stroke="#d8c7ac"/>
+  <text x="64" y="40" font-size="11" text-anchor="middle" fill="#2a2119">Carta y carrito</text>
+  <text x="64" y="55" font-size="8.5" text-anchor="middle" fill="#6b6155">React · Vercel</text>
+
+  <text x="150" y="12" font-size="9" fill="#a63a2c" font-weight="bold">BACKEND PROPIO</text>
+  <rect x="150" y="20" width="176" height="90" rx="4" fill="#fff" stroke="#a63a2c" stroke-width="1.2"/>
+  <text x="238" y="37" font-size="11" text-anchor="middle" font-weight="bold">POST /api/orders</text>
+  <line x1="158" y1="44" x2="318" y2="44" stroke="#d8c7ac"/>
+  <text x="162" y="58" font-size="8.5" fill="#2a2119">1 · Rate limit por IP (Redis)</text>
+  <text x="162" y="71" font-size="8.5" fill="#2a2119">2 · Recalcula precios y total</text>
+  <text x="162" y="84" font-size="8.5" fill="#2a2119">3 · Horario y zona de entrega</text>
+  <text x="162" y="97" font-size="8.5" fill="#2a2119">4 · Número correlativo del día</text>
+
+  <text x="352" y="12" font-size="9" fill="#a63a2c" font-weight="bold">MEMORIA</text>
+  <rect x="352" y="20" width="140" height="46" rx="4" fill="#fff" stroke="#1c8b7f" stroke-width="1.2"/>
+  <text x="422" y="38" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1c8b7f">Notion</text>
+  <text x="422" y="53" font-size="8.5" text-anchor="middle" fill="#6b6155">arrecifepedidos</text>
+  <text x="422" y="80" font-size="8" text-anchor="middle" fill="#a63a2c">fuente de verdad</text>
+  <text x="422" y="92" font-size="8" text-anchor="middle" fill="#6b6155">si falla, se rechaza</text>
+
+  <text x="518" y="12" font-size="9" fill="#a63a2c" font-weight="bold">ORQUESTADOR</text>
+  <rect x="518" y="20" width="150" height="46" rx="4" fill="#fff" stroke="#d8c7ac"/>
+  <text x="593" y="38" font-size="10.5" text-anchor="middle" font-weight="bold">n8n · Webhook</text>
+  <text x="593" y="53" font-size="8.5" text-anchor="middle" fill="#6b6155">Header Auth</text>
+
+  <rect x="518" y="82" width="150" height="40" rx="4" fill="#f8f3e8" stroke="#d8c7ac"/>
+  <text x="593" y="100" font-size="9.5" text-anchor="middle">Armar mensaje</text>
+  <text x="593" y="113" font-size="8" text-anchor="middle" fill="#6b6155">Code · escapa HTML</text>
+
+  <text x="694" y="12" font-size="9" fill="#a63a2c" font-weight="bold">SALIDA</text>
+  <rect x="694" y="82" width="120" height="40" rx="4" fill="#fff" stroke="#1c8b7f" stroke-width="1.2"/>
+  <text x="754" y="100" font-size="10.5" text-anchor="middle" font-weight="bold" fill="#1c8b7f">Telegram</text>
+  <text x="754" y="113" font-size="8" text-anchor="middle" fill="#6b6155">al encargado</text>
+
+  <line x1="124" y1="43" x2="146" y2="43" stroke="#6b6155" marker-end="url(#f1)"/>
+  <line x1="326" y1="43" x2="348" y2="43" stroke="#6b6155" marker-end="url(#f1)"/>
+  <line x1="492" y1="43" x2="514" y2="43" stroke="#6b6155" marker-end="url(#f1)"/>
+  <line x1="593" y1="66" x2="593" y2="78" stroke="#6b6155" marker-end="url(#f1)"/>
+  <line x1="668" y1="102" x2="690" y2="102" stroke="#6b6155" marker-end="url(#f1)"/>
+
+  <text x="4" y="140" font-size="8.5" fill="#6b6155">Ruta de error: si Notion falla → HTTP 502 y el cliente ve el error (el pedido no se confirma).</text>
+  <text x="4" y="153" font-size="8.5" fill="#6b6155">Si n8n falla → el pedido queda igual en Notion; sólo se pierde el aviso, y se reprocesa desde la base.</text>
+</svg>
+<figcaption>Figura 1 — Pedidos. La aplicación es dueña de la escritura; n8n es un ramal de notificación.</figcaption>
+</figure>
+
+<h3>1.2 · Flujo de reservas</h3>
+
+<figure>
+<svg viewBox="0 0 900 340" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif">
+  <defs>
+    <marker id="f2" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,1 L7,4 L0,7 z" fill="#6b6155"/>
+    </marker>
+  </defs>
+
+  <!-- fila 1 -->
+  <rect x="4" y="18" width="104" height="42" rx="4" fill="#f8f3e8" stroke="#d8c7ac"/>
+  <text x="56" y="35" font-size="9.5" text-anchor="middle">Formulario web</text>
+  <text x="56" y="49" font-size="8" text-anchor="middle" fill="#6b6155">/reservas</text>
+
+  <rect x="126" y="18" width="120" height="42" rx="4" fill="#fff" stroke="#a63a2c" stroke-width="1.2"/>
+  <text x="186" y="34" font-size="9.5" text-anchor="middle" font-weight="bold">/api/orders</text>
+  <text x="186" y="48" font-size="8" text-anchor="middle" fill="#6b6155">valida · numera</text>
+
+  <rect x="264" y="18" width="118" height="42" rx="4" fill="#fff" stroke="#d8c7ac"/>
+  <text x="323" y="34" font-size="9.5" text-anchor="middle" font-weight="bold">Webhook n8n</text>
+  <text x="323" y="48" font-size="8" text-anchor="middle" fill="#6b6155">Header Auth</text>
+
+  <rect x="400" y="18" width="106" height="42" rx="4" fill="#f8f3e8" stroke="#d8c7ac"/>
+  <text x="453" y="34" font-size="9.5" text-anchor="middle">Configuración</text>
+  <text x="453" y="48" font-size="8" text-anchor="middle" fill="#6b6155">IDs · rango de fecha</text>
+
+  <rect x="524" y="18" width="120" height="42" rx="4" fill="#fff" stroke="#1c8b7f" stroke-width="1.2"/>
+  <text x="584" y="34" font-size="9.5" text-anchor="middle" font-weight="bold" fill="#1c8b7f">Notion</text>
+  <text x="584" y="48" font-size="8" text-anchor="middle" fill="#6b6155">Politicas_Arrecife</text>
+
+  <rect x="662" y="18" width="132" height="42" rx="4" fill="#fff" stroke="#a63a2c" stroke-width="1.4"/>
+  <text x="728" y="34" font-size="9.5" text-anchor="middle" font-weight="bold" fill="#a63a2c">Claude</text>
+  <text x="728" y="48" font-size="8" text-anchor="middle" fill="#6b6155">RAG · salida estructurada</text>
+
+  <line x1="108" y1="39" x2="122" y2="39" stroke="#6b6155" marker-end="url(#f2)"/>
+  <line x1="246" y1="39" x2="260" y2="39" stroke="#6b6155" marker-end="url(#f2)"/>
+  <line x1="382" y1="39" x2="396" y2="39" stroke="#6b6155" marker-end="url(#f2)"/>
+  <line x1="506" y1="39" x2="520" y2="39" stroke="#6b6155" marker-end="url(#f2)"/>
+  <line x1="644" y1="39" x2="658" y2="39" stroke="#6b6155" marker-end="url(#f2)"/>
+
+  <!-- fila 2 -->
+  <rect x="4" y="88" width="130" height="42" rx="4" fill="#fff" stroke="#1c8b7f" stroke-width="1.2"/>
+  <text x="69" y="104" font-size="9.5" text-anchor="middle" font-weight="bold" fill="#1c8b7f">Notion · Turnos</text>
+  <text x="69" y="118" font-size="8" text-anchor="middle" fill="#6b6155">capacidad del día</text>
+
+  <rect x="152" y="88" width="150" height="42" rx="4" fill="#fff" stroke="#1c8b7f" stroke-width="1.2"/>
+  <text x="227" y="104" font-size="9.5" text-anchor="middle" font-weight="bold" fill="#1c8b7f">Notion · Reservas</text>
+  <text x="227" y="118" font-size="8" text-anchor="middle" fill="#6b6155">ocupación y duplicados</text>
+
+  <rect x="320" y="82" width="150" height="54" rx="4" fill="#fdf6e9" stroke="#a63a2c" stroke-width="1.4"/>
+  <text x="395" y="99" font-size="10" text-anchor="middle" font-weight="bold">ROUTER · Decidir</text>
+  <text x="395" y="113" font-size="7.8" text-anchor="middle" fill="#6b6155">confianza · política · cupo</text>
+  <text x="395" y="125" font-size="7.8" text-anchor="middle" fill="#6b6155">tamaño · duplicado</text>
+
+  <rect x="500" y="82" width="112" height="24" rx="3" fill="#f8f3e8" stroke="#d8c7ac"/>
+  <text x="556" y="98" font-size="8.5" text-anchor="middle">Duplicada → descartar</text>
+
+  <rect x="500" y="112" width="112" height="24" rx="3" fill="#fff" stroke="#1c8b7f"/>
+  <text x="556" y="128" font-size="8.5" text-anchor="middle" fill="#1c8b7f">Crear reserva</text>
+
+  <text x="734" y="97" font-size="8.5" fill="#6b6155">Estado inicial que asigna</text>
+  <text x="734" y="109" font-size="8.5" fill="#6b6155">el router:</text>
+  <text x="734" y="124" font-size="8.5" fill="#1c8b7f" font-weight="bold">Confirmada</text>
+  <text x="734" y="136" font-size="8.5" fill="#a63a2c" font-weight="bold">Esperando_Aprobacion</text>
+
+  <path d="M728,60 L728,72 L69,72 L69,84" fill="none" stroke="#6b6155" marker-end="url(#f2)"/>
+  <line x1="134" y1="109" x2="148" y2="109" stroke="#6b6155" marker-end="url(#f2)"/>
+  <line x1="302" y1="109" x2="316" y2="109" stroke="#6b6155" marker-end="url(#f2)"/>
+  <line x1="470" y1="97" x2="496" y2="94" stroke="#6b6155" marker-end="url(#f2)"/>
+  <line x1="470" y1="119" x2="496" y2="123" stroke="#6b6155" marker-end="url(#f2)"/>
+
+  <!-- fila 3 -->
+  <rect x="4" y="166" width="130" height="40" rx="4" fill="#fff" stroke="#1c8b7f" stroke-width="1.2"/>
+  <text x="69" y="182" font-size="9.5" text-anchor="middle" font-weight="bold" fill="#1c8b7f">Telegram</text>
+  <text x="69" y="196" font-size="8" text-anchor="middle" fill="#6b6155">aviso al encargado</text>
+
+  <rect x="152" y="166" width="140" height="40" rx="4" fill="#f8f3e8" stroke="#d8c7ac"/>
+  <text x="222" y="182" font-size="9.5" text-anchor="middle">¿Requiere aprobación?</text>
+  <text x="222" y="196" font-size="8" text-anchor="middle" fill="#6b6155">router</text>
+
+  <rect x="310" y="152" width="130" height="34" rx="4" fill="#fff" stroke="#1c8b7f"/>
+  <text x="375" y="167" font-size="9" text-anchor="middle" fill="#1c8b7f">Gmail · confirmación</text>
+  <text x="375" y="179" font-size="7.8" text-anchor="middle" fill="#6b6155">sólo si dejó email</text>
+
+  <path d="M556,136 L556,150 L69,150 L69,162" fill="none" stroke="#6b6155" marker-end="url(#f2)"/>
+  <line x1="134" y1="186" x2="148" y2="186" stroke="#6b6155" marker-end="url(#f2)"/>
+  <line x1="292" y1="177" x2="306" y2="171" stroke="#6b6155" marker-end="url(#f2)"/>
+
+  <!-- HITL -->
+  <rect x="310" y="200" width="500" height="86" rx="5" fill="#fff" stroke="#a63a2c" stroke-width="1.4" stroke-dasharray="4 2"/>
+  <text x="322" y="216" font-size="9.5" font-weight="bold" fill="#a63a2c">HUMAN-IN-THE-LOOP · el sistema se detiene y espera</text>
+
+  <rect x="322" y="226" width="94" height="34" rx="3" fill="#f8f3e8" stroke="#d8c7ac"/>
+  <text x="369" y="241" font-size="8.5" text-anchor="middle">Esperar 5 min</text>
+  <text x="369" y="253" font-size="7.5" text-anchor="middle" fill="#6b6155">nodo Wait</text>
+
+  <rect x="432" y="226" width="104" height="34" rx="3" fill="#fff" stroke="#1c8b7f"/>
+  <text x="484" y="241" font-size="8.5" text-anchor="middle" fill="#1c8b7f">Releer Estado</text>
+  <text x="484" y="253" font-size="7.5" text-anchor="middle" fill="#6b6155">en Notion</text>
+
+  <rect x="552" y="226" width="104" height="34" rx="3" fill="#fdf6e9" stroke="#a63a2c"/>
+  <text x="604" y="241" font-size="8.5" text-anchor="middle" font-weight="bold">Resultado</text>
+  <text x="604" y="253" font-size="7.5" text-anchor="middle" fill="#6b6155">router de 3 salidas</text>
+
+  <text x="672" y="235" font-size="8" fill="#1c8b7f">Confirmada → Gmail al cliente</text>
+  <text x="672" y="247" font-size="8" fill="#a63a2c">Rechazada → Gmail de disculpa</text>
+  <text x="672" y="259" font-size="8" fill="#6b6155">4 h sin respuesta → Vencida</text>
+
+  <text x="322" y="277" font-size="7.8" fill="#6b6155">El encargado mueve el campo Estado en Notion. El corte por vencimiento es la guarda contra bucle infinito.</text>
+
+  <path d="M222,206 L222,243 L318,243" fill="none" stroke="#6b6155" marker-end="url(#f2)"/>
+  <line x1="416" y1="243" x2="428" y2="243" stroke="#6b6155" marker-end="url(#f2)"/>
+  <line x1="536" y1="243" x2="548" y2="243" stroke="#6b6155" marker-end="url(#f2)"/>
+  <path d="M484,260 L484,268 L369,268 L369,262" fill="none" stroke="#6b6155" stroke-dasharray="3 2" marker-end="url(#f2)"/>
+
+  <!-- errores -->
+  <rect x="4" y="226" width="280" height="34" rx="4" fill="#fff" stroke="#a63a2c"/>
+  <text x="144" y="241" font-size="9" text-anchor="middle" font-weight="bold" fill="#a63a2c">RUTA DE ERROR · Notion · Errores</text>
+  <text x="144" y="253" font-size="7.8" text-anchor="middle" fill="#6b6155">si la IA falla, queda registro vinculado a la reserva</text>
+  <path d="M556,136 L296,136 L144,136 L144,222" fill="none" stroke="#a63a2c" stroke-dasharray="3 2" marker-end="url(#f2)"/>
+
+  <text x="4" y="308" font-size="8.5" fill="#6b6155">Rama paralela: el registro del error no altera el curso de la reserva, que igual llega al encargado marcada para revisión.</text>
+  <text x="4" y="321" font-size="8.5" fill="#6b6155">Todo identificador (bases, cupos, plazos) proviene del nodo Configuración; ninguno está escrito dentro de un nodo.</text>
+</svg>
+<figcaption>Figura 2 — Reservas. 28 nodos: trigger, dos routers, cuatro APIs externas, un nodo de IA, ruta de error y punto de aprobación humana.</figcaption>
+</figure>
+
+<h3>1.3 · Disparadores</h3>
+
+<table>
+  <tr><th>Proceso</th><th>Disparador</th><th>Por qué</th></tr>
+  <tr>
+    <td>Pedido nuevo</td><td>Webhook <code>POST /webhook/arrecife-pedidos</code></td>
+    <td rowspan="2">
+      Webhook y no sondeo. Un trigger que consulta una hoja o un buzón cada minuto
+      gasta operaciones las 24 horas para detectar unas pocas decenas de eventos
+      diarios. El webhook se ejecuta exactamente una vez por evento real.
+    </td>
+  </tr>
+  <tr><td>Reserva nueva</td><td>Webhook <code>POST /webhook/arrecife-reservas</code></td></tr>
+  <tr>
+    <td>Aprobación humana</td><td>Nodo <code>Wait</code> de 5 minutos, reintentando</td>
+    <td>
+      Notion no emite webhooks de cambios. El sondeo se acota a la reserva concreta
+      que está esperando y muere a las 4 horas.
+    </td>
+  </tr>
+</table>
+
+<!-- ═══════════════════════ 2 · DATOS ═══════════════════════ -->
+<h2 class="salto">2 · Estructuras de datos</h2>
+
+<p>
+  Cinco bases en Notion, con relaciones explícitas para que ningún registro quede
+  aislado. Los tipos importan: la API rechaza la escritura si el nombre o el tipo
+  de una propiedad no coincide exactamente.
+</p>
+
+<h3>2.1 · Modelo de datos</h3>
+
+<figure>
+<svg viewBox="0 0 900 200" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, sans-serif">
+  <defs>
+    <marker id="r1" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,1 L7,4 L0,7 z" fill="#1c8b7f"/>
+    </marker>
+  </defs>
+
+  <rect x="300" y="14" width="230" height="122" rx="5" fill="#fff" stroke="#1c8b7f" stroke-width="1.6"/>
+  <rect x="300" y="14" width="230" height="20" rx="5" fill="#1c8b7f"/>
+  <text x="415" y="28" font-size="10" text-anchor="middle" fill="#fff" font-weight="bold">Reservas</text>
+  <text x="310" y="47" font-size="8">Nombre_Cliente · <tspan fill="#6b6155">title</tspan></text>
+  <text x="310" y="59" font-size="8">Numero · Personas · Confianza_IA · <tspan fill="#6b6155">number</tspan></text>
+  <text x="310" y="71" font-size="8">Fecha · <tspan fill="#6b6155">date con hora</tspan> · Hora · Telefono</text>
+  <text x="310" y="83" font-size="8">Email · <tspan fill="#6b6155">email</tspan> · Observaciones</text>
+  <text x="310" y="95" font-size="8" font-weight="bold" fill="#a63a2c">Estado · select · 4 valores</text>
+  <text x="310" y="107" font-size="8">Canal_Origen · Zona · <tspan fill="#6b6155">select</tspan></text>
+  <text x="310" y="119" font-size="8">Requiere_Revision · <tspan fill="#6b6155">checkbox</tspan></text>
+  <text x="310" y="131" font-size="8">Motivo_Revision · Politica_Relacionada</text>
+
+  <rect x="30" y="30" width="200" height="66" rx="5" fill="#fff" stroke="#1c8b7f" stroke-width="1.2"/>
+  <rect x="30" y="30" width="200" height="18" rx="5" fill="#1c8b7f"/>
+  <text x="130" y="43" font-size="9.5" text-anchor="middle" fill="#fff" font-weight="bold">Turnos</text>
+  <text x="40" y="61" font-size="8">Nombre_Turno · <tspan fill="#6b6155">title</tspan></text>
+  <text x="40" y="73" font-size="8">Fecha · <tspan fill="#6b6155">date</tspan> · Capacidad_Total · <tspan fill="#6b6155">number</tspan></text>
+  <text x="40" y="85" font-size="8" fill="#1c8b7f">Reservas_Vinculadas · relación</text>
+
+  <rect x="600" y="30" width="200" height="66" rx="5" fill="#fff" stroke="#a63a2c" stroke-width="1.2"/>
+  <rect x="600" y="30" width="200" height="18" rx="5" fill="#a63a2c"/>
+  <text x="700" y="43" font-size="9.5" text-anchor="middle" fill="#fff" font-weight="bold">Errores</text>
+  <text x="610" y="61" font-size="8">Error_numero · <tspan fill="#6b6155">title</tspan> · Timestamp</text>
+  <text x="610" y="73" font-size="8">Tipo_Error · <tspan fill="#6b6155">select</tspan> · Resuelto · <tspan fill="#6b6155">checkbox</tspan></text>
+  <text x="610" y="85" font-size="8" fill="#a63a2c">Reserva_Relacionada · relación</text>
+
+  <rect x="30" y="140" width="200" height="52" rx="5" fill="#fff" stroke="#6b6155" stroke-width="1.2"/>
+  <rect x="30" y="140" width="200" height="18" rx="5" fill="#6b6155"/>
+  <text x="130" y="153" font-size="9.5" text-anchor="middle" fill="#fff" font-weight="bold">Politicas_Arrecife</text>
+  <text x="40" y="171" font-size="8">Nombre · Contenido · Categoria · Prioridad</text>
+  <text x="40" y="183" font-size="8">Activo · <tspan fill="#6b6155">checkbox</tspan> · Requiere_Aviso_Previo</text>
+
+  <rect x="600" y="140" width="200" height="52" rx="5" fill="#fff" stroke="#6b6155" stroke-width="1.2"/>
+  <rect x="600" y="140" width="200" height="18" rx="5" fill="#6b6155"/>
+  <text x="700" y="153" font-size="9.5" text-anchor="middle" fill="#fff" font-weight="bold">arrecifepedidos</text>
+  <text x="610" y="171" font-size="8">Pedido · Numero · Estado · Cliente · Telefono</text>
+  <text x="610" y="183" font-size="8">Detalle · Platos · Subtotal · Descuento · Total</text>
+
+  <line x1="230" y1="63" x2="296" y2="63" stroke="#1c8b7f" stroke-width="1.4" marker-end="url(#r1)"/>
+  <text x="263" y="58" font-size="7.5" text-anchor="middle" fill="#1c8b7f">bidireccional</text>
+  <line x1="596" y1="63" x2="534" y2="63" stroke="#a63a2c" stroke-width="1.4" marker-end="url(#r1)"/>
+  <text x="565" y="58" font-size="7.5" text-anchor="middle" fill="#a63a2c">1 → N</text>
+
+  <path d="M130,136 L130,120 L296,105" fill="none" stroke="#6b6155" stroke-dasharray="3 2"/>
+  <text x="196" y="128" font-size="7.5" fill="#6b6155">contexto RAG (lectura)</text>
+</svg>
+<figcaption>Figura 3 — Las cinco bases. Las líneas llenas son relaciones de Notion; la punteada es lectura sin relación.</figcaption>
+</figure>
+
+<div class="nota">
+  <b>Campos de estado.</b> <code>Reservas.Estado</code> es el eje del sistema:
+  <code>Esperando_Aprobacion</code> → <code>Confirmada</code> / <code>Rechazada</code> /
+  <code>Vencida</code>. Es lo que escribe el router, lo que sondea el bucle de
+  aprobación y lo que el encargado modifica a mano para dar su veredicto. Los
+  pedidos usan el suyo: <code>Nuevo</code> → <code>Preparando</code> →
+  <code>Listo</code> → <code>En camino</code> → <code>Entregado</code>.
+</div>
+
+<h3>2.2 · Esquemas JSON de transferencia</h3>
+
+<h4>a · Aplicación → n8n (reserva nueva)</h4>
+<p>
+  Los datos ya vienen validados y normalizados: el flujo no vuelve a chequear
+  nada. El teléfono llega en E.164 y las fechas con el desfase horario explícito.
+</p>
+<pre><code>POST /webhook/arrecife-reservas
+X-Arrecife-Secret: &lt;secreto compartido&gt;
+
+{
+  "tipo": "reservation",
+  "numero": 7,                                    // correlativo del día
+  "fecha": "2026-08-23",                          // jornada de servicio
+  "recibido": "2026-08-23T18:04:13-03:00",
+  "datos": {
+    "nombre": "Carolina Méndez",
+    "telefono": "+59899202020",                   // E.164
+    "email": "carolina@ejemplo.com",              // null si no lo dejó
+    "fecha": "2028-04-22",
+    "fechaLabel": "Sábado, 22 de abril",
+    "hora": "21:00",
+    "fechaHora": "2028-04-22T21:00:00-03:00",     // desfase explícito
+    "personas": 6,
+    "zona": "terraza",
+    "zonaLabel": "Terraza frente al puerto",
+    "comentario": "Festejamos un aniversario…"    // null si no escribió
+  }
+}</code></pre>
+
+<h4>b · n8n → Anthropic (análisis con RAG)</h4>
+<p>
+  El cuerpo se arma en un nodo <i>Code</i>, no en una expresión: así puede
+  ejecutarse y probarse como JavaScript común. El <i>system prompt</i> es
+  dinámico — se rearma en cada ejecución con las políticas vigentes.
+</p>
+<pre><code>{
+  "model": "claude-opus-5",
+  "max_tokens": 4000,
+  "system": "Sos un asistente que evalúa solicitudes de reserva…\n\n
+             POLÍTICAS VIGENTES DE ARRECIFE:\n
+             - [Menu/Media] Descorche de bebidas propias: …\n
+             - [Politica_Reserva/Alta] Mascotas en el salón: …\n
+             … 23 políticas recuperadas de Notion",
+  "output_config": {
+    "effort": "low",
+    "format": {                                   // salida estructurada:
+      "type": "json_schema",                      // el esquema lo garantiza
+      "schema": {
+        "type": "object",
+        "properties": {
+          "requiere_revision_humana": { "type": "boolean" },
+          "motivo_revision":          { "type": ["string","null"] },
+          "confianza":                { "type": "number" },
+          "viola_politica":           { "type": "boolean" },
+          "politica_relacionada":     { "type": ["string","null"] }
+        },
+        "required": ["requiere_revision_humana","motivo_revision",
+                     "confianza","viola_politica","politica_relacionada"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "messages": [{ "role": "user",
+                 "content": "Nombre: …\nPersonas: 6\nFecha: …\nComentario: …" }]
+}</code></pre>
+
+<div class="nota">
+  <b>Mapeo de la respuesta.</b> El JSON <i>no</i> está en
+  <code>content[0].text</code>. El modelo razona antes de responder, así que el
+  primer bloque es de tipo <code>thinking</code> y el texto viene después. Se
+  busca el bloque por tipo: <code>content.find(b =&gt; b.type === 'text')</code>.
+  Asumir la posición hacía que el análisis fallara en silencio en todas las
+  ejecuciones.
+</div>
+
+<h4>c · n8n → Notion (alta de la reserva)</h4>
+<pre><code>POST https://api.notion.com/v1/pages
+Notion-Version: 2022-06-28
+
+{
+  "parent": { "database_id": "{{ Configuración.bases.reservas }}" },
+  "properties": {
+    "Nombre_Cliente":  { "title":      [{ "text": { "content": "Carolina Méndez" }}] },
+    "Numero":          { "number":     7 },
+    "Estado":          { "select":     { "name": "Esperando_Aprobacion" }},
+    "Canal_Origen":    { "select":     { "name": "Web" }},
+    "Telefono":        { "rich_text":  [{ "text": { "content": "+59899202020" }}] },
+    "Email":           { "email":      "carolina@ejemplo.com" },
+    "Fecha":           { "date":       { "start": "2028-04-22T21:00:00-03:00" }},
+    "Personas":        { "number":     6 },
+    "Zona":            { "select":     { "name": "Terraza frente al puerto" }},
+    "Turno":           { "relation":   [{ "id": "&lt;página del turno&gt;" }] },
+    "Confianza_IA":    { "number":     0.94 },
+    "Requiere_Revision": { "checkbox": true },
+    "Motivo_Revision": { "rich_text":  [{ "text": { "content": "…" }}] }
+  }
+}</code></pre>
+
+<h4>d · Consulta de ocupación</h4>
+<p>
+  Se filtra por <i>rango</i> y no por igualdad de fecha. Notion compara en UTC:
+  una reserva de las 21:00 <code>-03:00</code> queda registrada como el día
+  siguiente en UTC, de modo que <code>{ equals: "2028-04-22" }</code> no devuelve
+  ninguna reserva de la cena — y el turno de cena va de 19:30 a 00:00.
+</p>
+<pre><code>{ "filter": { "and": [
+    { "property": "Fecha",  "date":   { "on_or_after": "2028-04-22T00:00:00-03:00" }},
+    { "property": "Fecha",  "date":   { "before":      "2028-04-23T00:00:00-03:00" }},
+    { "property": "Estado", "select": { "equals": "Confirmada" }}
+]}, "page_size": 100 }</code></pre>
+
+<!-- ═══════════════════════ 3 · COSTOS ═══════════════════════ -->
+<h2 class="salto">3 · Optimización de costos</h2>
+
+<h3>3.1 · Qué tareas usan IA, y cuáles no</h3>
+<p>
+  La primera decisión de costo es no usar un modelo donde alcanza el código. El
+  sistema tiene cinco tareas y sólo una llama a un modelo de lenguaje.
+</p>
+
+<table>
+  <tr><th>Tarea</th><th>Resuelta con</th><th>Motivo</th></tr>
+  <tr>
+    <td>Validar precios, horario y zona de entrega</td>
+    <td>Código determinista</td>
+    <td>Reglas exactas y auditables. Un modelo aquí sería más caro, más lento y menos confiable.</td>
+  </tr>
+  <tr>
+    <td>Numerar pedidos y reservas</td><td>Contador atómico en Redis</td>
+    <td>Requiere garantía de unicidad; un modelo no la da.</td>
+  </tr>
+  <tr>
+    <td>Detectar duplicados</td><td>Consulta a Notion</td>
+    <td>Comparación exacta de teléfono y fecha.</td>
+  </tr>
+  <tr>
+    <td>Controlar la capacidad del turno</td><td>Suma aritmética</td>
+    <td>El dato existe en la base; no hay nada que interpretar.</td>
+  </tr>
+  <tr class="destacada">
+    <td>Interpretar el comentario del cliente contra 23 políticas</td>
+    <td>Claude Opus 5</td>
+    <td>Único punto con lenguaje natural ambiguo y consecuencias reales.</td>
+  </tr>
+</table>
+
+<h3>3.2 · Consumo medido</h3>
+<p>
+  Medido sobre el prompt real en producción, con las 23 políticas activas:
+</p>
+
+<table>
+  <tr><th>Concepto</th><th class="num">Caracteres</th><th class="num">Tokens aprox.</th></tr>
+  <tr><td>System prompt (instrucciones + 23 políticas)</td><td class="num">5.324</td><td class="num">1.520</td></tr>
+  <tr><td>Mensaje de usuario (datos de la reserva)</td><td class="num">210</td><td class="num">60</td></tr>
+  <tr><td>Definición del esquema de salida</td><td class="num">436</td><td class="num">125</td></tr>
+  <tr class="destacada"><td>Entrada total por reserva</td><td class="num">5.970</td><td class="num">~1.700</td></tr>
+  <tr><td>Salida (razonamiento + JSON), <code>effort: low</code></td><td class="num">—</td><td class="num">~800</td></tr>
+</table>
+
+<h3>3.3 · Matriz de decisión del modelo</h3>
+
+<table>
+  <tr>
+    <th>Modelo</th><th class="num">Entrada<br>USD/MTok</th><th class="num">Salida<br>USD/MTok</th>
+    <th class="num">Costo por<br>reserva</th><th class="num">300 reservas<br>al mes</th><th>Veredicto para esta tarea</th>
+  </tr>
+  <tr class="destacada">
+    <td>Claude Opus 5</td><td class="num">5,00</td><td class="num">25,00</td>
+    <td class="num">$0,0285</td><td class="num">$8,55</td>
+    <td>Elegido. Distingue matices que cambian la decisión.</td>
+  </tr>
+  <tr>
+    <td>Claude Sonnet 5</td><td class="num">3,00</td><td class="num">15,00</td>
+    <td class="num">$0,0171</td><td class="num">$5,13</td>
+    <td>Alternativa razonable. Ahorra $3,42 al mes: no compensa el riesgo.</td>
+  </tr>
+  <tr>
+    <td>Claude Haiku 4.5</td><td class="num">1,00</td><td class="num">5,00</td>
+    <td class="num">$0,0057</td><td class="num">$1,71</td>
+    <td>Sólo si el volumen creciera dos órdenes de magnitud.</td>
+  </tr>
+</table>
+
+<p>
+  <b>Por qué el modelo más capaz en la tarea más barata.</b> El costo total del
+  componente de IA es de unos <b>8,55 USD al mes</b> con 300 reservas. Bajar a
+  Haiku ahorraría 6,84 USD mensuales: menos de lo que cuesta un plato de la
+  carta. Contra eso, un error de clasificación tiene consecuencias físicas —
+  confirmar automáticamente una mesa que trae una mascota al salón, o no advertir
+  una alergia grave, se paga con el cliente sentado en el restaurante.
+</p>
+
+<p>
+  La diferencia se observó en producción. Ante el comentario <i>«cumpleaños,
+  llevamos nuestra torta y una botella de champagne, viene mi perro»</i>, el
+  modelo separó lo permitido de lo prohibido citando las políticas por nombre:
+  la torta externa está permitida, el descorche no, y el perro se acepta en la
+  terraza pero no en el salón. Esa granularidad es exactamente lo que los modelos
+  más chicos aplanan.
+</p>
+
+<h3>3.4 · Optimizaciones aplicadas y descartadas</h3>
+
+<table>
+  <tr><th>Técnica</th><th>Estado</th><th>Justificación</th></tr>
+  <tr>
+    <td><code>effort: low</code></td><td>Aplicada</td>
+    <td>Clasificar contra 23 políticas no exige razonamiento profundo. Reduce tokens de salida y latencia.</td>
+  </tr>
+  <tr>
+    <td>Tope de <code>max_tokens</code></td><td>Aplicada — 4.000</td>
+    <td>Techo ante una respuesta anómala. No puede ser menor: el razonamiento sale del mismo presupuesto y con 1.000 la respuesta se cortaba.</td>
+  </tr>
+  <tr>
+    <td>Salida estructurada</td><td>Aplicada</td>
+    <td>Elimina los reintentos por JSON mal formado, que se pagan dos veces.</td>
+  </tr>
+  <tr>
+    <td>Filtrar políticas antes del prompt</td><td>Aplicada</td>
+    <td>Sólo entran las marcadas <code>Activo</code>. Las inactivas no se pagan.</td>
+  </tr>
+  <tr>
+    <td>Caché de prompt</td><td>Evaluada, no aplicada</td>
+    <td>El bloque de políticas es estable y supera el mínimo cacheable, pero las reservas llegan espaciadas y la ventana por defecto es de 5 minutos: casi todas las lecturas serían fallos de caché. Se vuelve rentable con TTL de una hora si el volumen sube.</td>
+  </tr>
+  <tr>
+    <td>API de lotes (50 % de descuento)</td><td>Descartada</td>
+    <td>Incompatible con el caso: el cliente espera respuesta en el momento y el encargado necesita el aviso al instante.</td>
+  </tr>
+</table>
+
+<h3>3.5 · Costo total de operación</h3>
+<table>
+  <tr><th>Componente</th><th class="num">USD / mes</th><th>Nota</th></tr>
+  <tr><td>Anthropic — Claude Opus 5</td><td class="num">8,55</td><td>300 reservas analizadas</td></tr>
+  <tr><td>n8n Cloud</td><td class="num">~24,00</td><td>plan de entrada</td></tr>
+  <tr><td>Vercel</td><td class="num">0,00</td><td>plan gratuito</td></tr>
+  <tr><td>Notion</td><td class="num">0,00</td><td>plan gratuito</td></tr>
+  <tr><td>Upstash Redis</td><td class="num">0,00</td><td>capa gratuita</td></tr>
+  <tr><td>Telegram</td><td class="num">0,00</td><td>Bot API sin costo</td></tr>
+  <tr class="destacada"><td>Total</td><td class="num">~32,55</td><td>La IA representa el 26 %</td></tr>
+</table>
+
+<!-- ═══════════════════ 4 · SEGURIDAD ═══════════════════ -->
+<h2 class="salto">4 · Seguridad y resiliencia</h2>
+
+<h3>4.1 · Minimización de datos</h3>
+
+<table>
+  <tr><th>Dato</th><th>Se recoge</th><th>Llega al modelo</th><th>Se conserva</th></tr>
+  <tr><td>Nombre</td><td>sí</td><td>sí</td><td>Notion</td></tr>
+  <tr><td>Teléfono</td><td>sí</td><td><b>no</b></td><td>Notion</td></tr>
+  <tr><td>Email</td><td>opcional</td><td><b>no</b></td><td>Notion</td></tr>
+  <tr><td>Fecha, hora, personas, zona</td><td>sí</td><td>sí</td><td>Notion</td></tr>
+  <tr><td>Comentario libre</td><td>opcional</td><td>sí</td><td>Notion</td></tr>
+</table>
+
+<p>
+  El teléfono y el email <b>no se envían al modelo</b>: no aportan nada a la
+  clasificación y son los datos más sensibles del conjunto. El registro de
+  errores guarda un subconjunto todavía menor — número, fecha, personas y
+  comentario — porque para depurar por qué falló un análisis no hace falta saber
+  a quién llamar.
+</p>
+
+<h4>Gestión de credenciales</h4>
+<ul>
+  <li>Ningún secreto vive dentro del flujo: el del webhook está en una credencial
+      Header Auth de n8n, y las claves de Notion, Anthropic, Gmail y Telegram en
+      credenciales propias. El JSON que se publica en el repositorio no contiene
+      ninguna.</li>
+  <li>Los identificadores de bases, el plazo de vencimiento y el destinatario de
+      los avisos se leen de variables de entorno con literal de respaldo, en un
+      único nodo <code>Configuración</code>.</li>
+  <li>Del lado de la aplicación, las variables viven en Vercel; el archivo local
+      está excluido del control de versiones.</li>
+</ul>
+
+<h3>4.2 · Rutas de error</h3>
+
+<table>
+  <tr><th>Fallo</th><th>Respuesta del sistema</th><th>Qué ve el usuario</th></tr>
+  <tr>
+    <td>Datos incompletos en el formulario</td>
+    <td>HTTP 400 con la lista de campos faltantes, antes de tocar nada</td>
+    <td>Error en el formulario</td>
+  </tr>
+  <tr>
+    <td>Fuera del horario de atención o de la zona de reparto</td>
+    <td>HTTP 409 con el motivo</td>
+    <td>Mensaje explicando cuándo o dónde sí se puede</td>
+  </tr>
+  <tr>
+    <td>Exceso de solicitudes desde una IP</td>
+    <td>HTTP 429 (20/hora por IP, 500/día global)</td>
+    <td>Aviso de reintentar más tarde</td>
+  </tr>
+  <tr>
+    <td>Notion no responde (pedidos)</td>
+    <td>HTTP 502; el pedido <b>no</b> se confirma</td>
+    <td>«No pudimos guardar tu pedido»</td>
+  </tr>
+  <tr>
+    <td>n8n no responde (reservas)</td>
+    <td>HTTP 502; la reserva <b>no</b> se confirma</td>
+    <td>«No pudimos guardar tu reserva»</td>
+  </tr>
+  <tr class="destacada">
+    <td>La API de IA falla o devuelve algo inesperado</td>
+    <td>El flujo <b>continúa</b>: la reserva se marca para revisión humana y se
+        escribe una fila en <code>Errores</code>, vinculada a la reserva</td>
+    <td>Nada: su reserva se registró igual</td>
+  </tr>
+  <tr>
+    <td>Gmail o Telegram fallan</td>
+    <td>El flujo continúa; la reserva ya está registrada</td>
+    <td>Confirmación por teléfono</td>
+  </tr>
+</table>
+
+<div class="nota">
+  <b>Criterio de diseño.</b> Falla ruidosamente lo que compromete el dato:
+  si el registro no se pudo escribir, no se le confirma nada al cliente.
+  Degrada en silencio lo accesorio: si el análisis o el aviso fallan, la reserva
+  igual queda guardada y llega a un humano. Lo que degrada, deja rastro — de ahí
+  la base <code>Errores</code>.
+</div>
+
+<h4>Guardas explícitas</h4>
+<ul>
+  <li><b>Bucle infinito:</b> el sondeo de aprobación se corta a las 4 horas
+      marcando la reserva como <code>Vencida</code> y escalando por Telegram.
+      El plazo es configurable.</li>
+  <li><b>Comparación de tipos:</b> los routers comparan booleano con booleano y
+      número con número; ningún filtro compara una cadena contra un número.</li>
+  <li><b>Duplicados:</b> misma fecha y mismo teléfono con reserva ya confirmada
+      se descarta sin crear una segunda.</li>
+  <li><b>Confianza en el cliente:</b> nula. Los precios se recalculan contra la
+      carta real; un total manipulado desde el navegador se ignora.</li>
+</ul>
+
+<h3>4.3 · Punto de validación humana</h3>
+
+<p>
+  El sistema <b>se detiene antes de confirmarle una mesa a un cliente</b> cuando
+  se cumple cualquiera de estas condiciones:
+</p>
+
+<table>
+  <tr><th>Condición</th><th>Origen</th></tr>
+  <tr><td>El comentario contradice una política vigente</td><td>Análisis con RAG</td></tr>
+  <tr><td>Menciona alergias, mascotas, accesibilidad o un evento</td><td>Análisis con RAG</td></tr>
+  <tr><td>La confianza del análisis es menor a 0,7</td><td>Umbral del router</td></tr>
+  <tr><td>Más de 10 personas</td><td>Regla de operación</td></tr>
+  <tr><td>La ocupación del turno supera la capacidad</td><td>Cálculo sobre Notion</td></tr>
+  <tr><td>El análisis de IA no se pudo completar</td><td>Ruta de error</td></tr>
+</table>
+
+<p>
+  En ese caso la reserva se guarda como <code>Esperando_Aprobacion</code> y el
+  encargado recibe por Telegram el detalle, el motivo y el enlace directo a la
+  ficha. Aprueba o rechaza <b>moviendo un campo en Notion</b> — sin aprender una
+  herramienta nueva. El flujo lo detecta en cinco minutos y recién entonces
+  contacta al cliente.
+</p>
+
+<div class="nota">
+  <b>Por qué evita el «efecto metralleta».</b> Ninguna comunicación con el
+  cliente final ocurre en la rama de revisión hasta que un humano decide. El
+  aviso al encargado no es una acción sobre el cliente: es la pregunta.
+</div>
+
+<!-- ═══════════════════ 5 · DASHBOARD ═══════════════════ -->
+<h2 class="salto">5 · Dashboard de control</h2>
+
+<p>
+  Vista pública de Notion, en modo lectura, pensada para el celular del encargado
+  durante el servicio.
+</p>
+
+<table>
+  <tr><th>Vista</th><th>Qué muestra</th><th>Para qué</th></tr>
+  <tr><td>Hoy</td><td>Reservas del día, ordenadas por hora</td><td>Operación durante el servicio</td></tr>
+  <tr><td>Esperando aprobación</td><td>Filtradas por <code>Estado</code>, con motivo y confianza</td><td>Cola de decisiones pendientes</td></tr>
+  <tr><td>Por estado</td><td>Tablero agrupado por <code>Estado</code></td><td>Volumen y proporción automática vs. revisada</td></tr>
+  <tr><td>Ocupación</td><td>Calendario por fecha</td><td>Carga por turno</td></tr>
+  <tr><td>Errores</td><td>Base <code>Errores</code> con <code>Resuelto</code> sin marcar</td><td>Tasa de fallos del sistema</td></tr>
+</table>
+
+<h4>Indicadores</h4>
+<table>
+  <tr><th>Indicador</th><th>Cálculo</th><th>Qué significa si se mueve</th></tr>
+  <tr>
+    <td>Tasa de automatización</td><td>sin <code>Requiere_Revision</code> ÷ total</td>
+    <td>Si baja, las políticas se volvieron restrictivas o cambió el público</td>
+  </tr>
+  <tr>
+    <td>Tasa de errores</td><td>filas en <code>Errores</code> ÷ reservas</td>
+    <td>Si sube, hay un problema de integración, no de negocio</td>
+  </tr>
+  <tr>
+    <td>Confianza media</td><td>promedio de <code>Confianza_IA</code></td>
+    <td>Una caída sostenida indica políticas desactualizadas frente a lo que la gente pregunta</td>
+  </tr>
+  <tr>
+    <td>Vencidas</td><td><code>Estado</code> = <code>Vencida</code></td>
+    <td>Mide el tiempo de respuesta humano, no el del sistema</td>
+  </tr>
+  <tr>
+    <td>Ocupación por turno</td><td>Σ <code>Personas</code> ÷ <code>Capacidad_Total</code></td>
+    <td>Saturación real del salón</td>
+  </tr>
+</table>
+
+<h4>Medición de referencia</h4>
+<p>
+  Los mismos indicadores se calculan contra la API con
+  <code>npm run notion:kpis</code>, lo que permite verificar que las vistas
+  publicadas muestren lo correcto. Salida al cierre del desarrollo:
+</p>
+<pre><code>Reservas procesadas                      20
+Resueltas automáticamente                 7   35,0 %
+Derivadas a revisión humana              13   65,0 %
+
+  Confirmada                             13   65,0 %
+  Rechazada                               5   25,0 %
+  Esperando_Aprobacion                    2   10,0 %
+
+Confianza media                        0,79
+Análisis con confianza &lt; 0,7              5
+Análisis fallidos (confianza 0)           1
+
+Errores registrados                       0
+Tasa de error                          0,0 %</code></pre>
+
+<p>
+  La proporción de revisión humana es alta porque las pruebas se concentraron
+  deliberadamente en casos conflictivos — mascotas, descorche, alergias, grupos
+  grandes. Con reservas corrientes la relación se invierte.
+</p>
+
+<div class="nota">
+  <b>Antes de publicar la vista.</b> Una vista pública de Notion expone nombres,
+  teléfonos y correos de clientes reales a cualquiera que tenga el enlace. Para
+  la entrega conviene publicarla con datos de prueba, o esconder
+  <code>Telefono</code> y <code>Email</code>: Notion respeta las propiedades
+  ocultas en la versión publicada.
+</div>
+
+<!-- ═══════════════════ 6 · EVIDENCIA ═══════════════════ -->
+<h2>6 · Evidencia de pruebas</h2>
+
+<table>
+  <tr><th>#</th><th>Escenario</th><th>Resultado esperado</th><th>Resultado</th></tr>
+  <tr>
+    <td>1</td><td>Reserva simple, 4 personas, sin observaciones</td>
+    <td>Confirmación automática</td>
+    <td><code>Confirmada</code> · confianza 1,00 · mail enviado</td>
+  </tr>
+  <tr>
+    <td>2</td><td>Comentario con torta propia, champagne y mascota</td>
+    <td>Revisión humana citando políticas</td>
+    <td><code>Esperando_Aprobacion</code> · confianza 0,94 · 3 políticas citadas</td>
+  </tr>
+  <tr>
+    <td>3</td><td>Reserva de 6 en un turno de capacidad 8, y luego otra de 4</td>
+    <td>La segunda frenada por cupo</td>
+    <td>«Sin lugar: 6 + 4 supera 8» · ambas vinculadas a su turno</td>
+  </tr>
+  <tr>
+    <td>4</td><td>Aprobación manual desde Notion</td>
+    <td>El sondeo detecta el cambio y avisa al cliente</td>
+    <td>Bucle cerrado · mail de confirmación recibido</td>
+  </tr>
+  <tr>
+    <td>5</td><td><b>Camino infeliz:</b> formulario sin teléfono ni fecha</td>
+    <td>Rechazo antes de tocar ninguna base</td>
+    <td><code>400 {"error":"invalido","details":["nombre","telefono",…]}</code></td>
+  </tr>
+  <tr>
+    <td>6</td><td><b>Camino infeliz:</b> webhook sin el secreto correcto</td>
+    <td>Descarte sin ejecutar el flujo</td>
+    <td>Rechazado en el trigger</td>
+  </tr>
+  <tr>
+    <td>7</td><td><b>Camino infeliz:</b> fallo del análisis de IA</td>
+    <td>La reserva sobrevive y queda registro</td>
+    <td>Marcada para revisión · fila en <code>Errores</code> vinculada</td>
+  </tr>
+</table>
+
+<h4>Archivos de respaldo en el repositorio</h4>
+<ul>
+  <li><code>n8n/reservas-arrecife.json</code> — flujo de reservas (28 nodos)</li>
+  <li><code>n8n/pedido-a-telegram.json</code> — flujo de pedidos</li>
+  <li><code>n8n/reservas/*.js</code> — código de cada nodo, como archivos ejecutables y probables</li>
+  <li><code>notion/reservas-esquema.mjs</code> — el esquema de las bases, reproducible e idempotente</li>
+  <li><code>n8n/RESERVAS.md</code> — decisiones de implementación y sus motivos</li>
+</ul>
+
+<div class="nota" style="margin-top:6mm">
+  <b>Sobre el modo de fallo dominante.</b> Los defectos más costosos del
+  desarrollo no fueron caídas: fueron ejecuciones que n8n reportaba como exitosas
+  haciendo menos de lo que declaraban. El análisis corría sin políticas, la
+  ocupación se calculaba siempre en cero, el correo de confirmación nunca salía.
+  Ninguno encendió una alarma. Por eso el sistema hoy registra <i>cuántas
+  políticas consultó</i> cada análisis y deja constancia en <code>Errores</code>
+  cuando degrada: la resiliencia sin observabilidad sólo esconde el problema.
+</div>
+
+</html>
