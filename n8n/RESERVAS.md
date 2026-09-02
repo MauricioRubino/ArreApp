@@ -4,9 +4,8 @@ Reemplaza al workflow que entraba por Google Forms. Ahora la reserva llega
 desde la página de reservas de la app.
 
 ```
-Reserva nueva (Webhook)
-  └ Configuración (IDs y secreto, en un solo lugar)
-      └ Secreto válido
+Reserva nueva (Webhook · Header Auth)
+  └ Configuración (IDs y plazos, en un solo lugar)
       └ Notion: políticas activas → Preparar análisis → Claude
           └ Notion: turno de la fecha → Notion: reservas confirmadas
               └ Decidir
@@ -71,10 +70,17 @@ reserva a revisión humana en vez de tirarla.
 nodo de n8n usa Markdown por defecto, y basta un `_` —el nombre de una
 política, por ejemplo— para que Telegram rechace el mensaje entero.
 
-**Ningún identificador vive dentro de un nodo.** Las bases, el secreto y las
-horas de vencimiento salen del nodo `Configuracion`, que a su vez los lee de
-variables de entorno de n8n y sólo cae al literal si no están. Cambiar de
-workspace o levantar un ambiente de prueba es tocar un nodo, no doce.
+**Ningún identificador vive dentro de un nodo.** Las bases y las horas de
+vencimiento salen del nodo `Configuracion`, que a su vez las lee de variables
+de entorno de n8n y sólo cae al literal si no están. Cambiar de workspace o
+levantar un ambiente de prueba es tocar un nodo, no doce.
+
+**El secreto del webhook tampoco vive en `Configuracion`.** Está en una
+credencial *Header Auth* del nodo `Reserva nueva`, que exige
+`X-Arrecife-Secret` y rechaza la petición con 403 antes de que el workflow
+arranque. Tenerlo en el código tenía dos problemas: cada reimportación lo
+pisaba con el placeholder, y viajaba adentro del JSON que se sube al
+repositorio.
 
 **Los fallos de IA quedan registrados.** Si Claude no contesta, la reserva
 sigue su curso hacia revisión humana —no se pierde— pero además se escribe
@@ -94,7 +100,7 @@ Después completar, igual que en el de pedidos:
 
 | Dónde | Qué poner |
 | --- | --- |
-| Nodo **Configuracion** | tu `N8N_SECRET` en `ARRECIFE_SECRET` (o el literal de respaldo) |
+| Nodo **Reserva nueva** | elegir la credencial **Header Auth** (*Name* = `X-Arrecife-Secret`, *Value* = tu `N8N_SECRET`) — es la misma que usa el workflow de pedidos |
 | Nodos de **Telegram** (2) | el `chatId` del dueño |
 | Nodos **Notion** (7) | elegir la credencial `notionApi` — las URLs ya vienen cargadas |
 | Nodo **Claude - Analizar** | credencial Header Auth con `x-api-key` |
@@ -115,7 +121,7 @@ Cada archivo se llama igual que el nodo que contiene:
 | `decidir.js` | **Decidir** — combina todo y elige la ruta |
 | `mensaje-al-dueno.js` | **Mensaje al dueno** — texto de Telegram |
 | `evaluar-aprobacion.js` | **Evaluar aprobacion** — polling del estado |
-| `configuracion.js` | **Configuracion** — IDs de bases, secreto y vencimiento |
+| `configuracion.js` | **Configuracion** — IDs de bases, plazos y vencimiento |
 | `armar-error.js` | **Armar error** — registro en la base Errores |
 | `retomar-datos.js` | **Retomar datos** — repone los datos tras el nodo de Telegram |
 
